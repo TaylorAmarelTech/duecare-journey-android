@@ -59,6 +59,27 @@ class AdviceViewModel @Inject constructor(
         appendMessage(ChatMessage.Role.ASSISTANT, sb.toString())
     }
 
+    /**
+     * UI-friendly variant: invokes [ask] inside the viewModelScope and
+     * surfaces partial text via [onChunk] as it arrives. [onComplete]
+     * fires once the stream finishes (or errors).
+     */
+    fun askStreaming(
+        question: String,
+        onChunk: (String) -> Unit,
+        onComplete: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            try {
+                ask(question).collect { partial -> onChunk(partial) }
+            } catch (e: Throwable) {
+                onChunk("⚠ Error: ${e.message ?: e::class.simpleName}")
+            } finally {
+                onComplete()
+            }
+        }
+    }
+
     private fun appendMessage(role: ChatMessage.Role, text: String) {
         viewModelScope.launch {
             _messages.value = _messages.value + ChatMessage(

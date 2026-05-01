@@ -2,6 +2,8 @@ package com.duecare.journey.di
 
 import android.content.Context
 import com.duecare.journey.inference.GemmaInferenceEngine
+import com.duecare.journey.inference.MediaPipeGemmaEngine
+import com.duecare.journey.inference.ModelManager
 import com.duecare.journey.inference.StubGemmaEngine
 import com.duecare.journey.journal.FeePaymentDao
 import com.duecare.journey.journal.JournalDao
@@ -19,14 +21,14 @@ import javax.inject.Singleton
 /**
  * Hilt module wiring up the four layers.
  *
- * Inference: bound to [StubGemmaEngine] for the v0.1 skeleton build.
- * v1 MVP swaps in [com.duecare.journey.inference.LiteRTGemmaEngine]
- * once the LiteRT model bundle is published.
+ * Inference: provides a smart engine that prefers MediaPipe when the
+ * Gemma model is downloaded + loadable, and falls back to the stub
+ * (canned responses) otherwise. Worker can force the stub via
+ * Settings → Use canned responses (planned v0.4 toggle).
  *
- * Journal v2: provides DAOs for the new entity set (Party,
- * FeePayment, LegalAssessment, RefundClaim) alongside the original
- * JournalDao. All DAOs are backed by a single SQLCipher-encrypted
- * Room database (see [JournalDatabase]).
+ * Journal v2: provides DAOs for the entity set (Party, FeePayment,
+ * LegalAssessment, RefundClaim) alongside the original JournalDao.
+ * All DAOs are backed by a single SQLCipher-encrypted Room database.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -34,14 +36,21 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGemmaEngine(stub: StubGemmaEngine): GemmaInferenceEngine = stub
+    fun provideGemmaEngine(
+        mediapipe: MediaPipeGemmaEngine,
+        stub: StubGemmaEngine,
+        modelManager: ModelManager,
+    ): GemmaInferenceEngine = SmartGemmaEngine(
+        primary = mediapipe,
+        fallback = stub,
+        modelManager = modelManager,
+    )
 
     @Provides
     @Singleton
     fun provideJournalDatabase(@ApplicationContext ctx: Context): JournalDatabase =
         JournalDatabase.create(ctx)
 
-    // ---- DAOs ----
     @Provides fun provideJournalDao(db: JournalDatabase): JournalDao = db.journalDao()
     @Provides fun providePartyDao(db: JournalDatabase): PartyDao = db.partyDao()
     @Provides fun provideFeePaymentDao(db: JournalDatabase): FeePaymentDao =
@@ -50,4 +59,47 @@ object AppModule {
         db.legalAssessmentDao()
     @Provides fun provideRefundClaimDao(db: JournalDatabase): RefundClaimDao =
         db.refundClaimDao()
+}
+
+/**
+ * Tries MediaPipe first if a model is downloaded; falls back to the
+ * stub on any failure. Lets the chat UI work end-to-end whether or
+ * not the worker has downloaded the model yet.
+ */
+internal class SmartGemmaEngine(
+    private val primary: MediaPipeGemmaEngine,
+    private val fallback: StubGemmaEngine,
+    private val modelManager: ModelManager,
+) : GemmaInferenceEngine {
+
+    override val isReady: Boolean
+        get() = modelManager.isDownloaded || fallback.isReady
+
+    override fun streamGenerate(
+        prompt: String,
+        maxNewTokens: Int,
+        temperature: Float,
+        topK: Int,
+        topP: Float,
+    ) = if (modelManager.isDownloaded) {
+        try {
+            primary.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
+        } catch (e: Throwable) {
+            fallback.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
+        }
+    } else {
+        fallback.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
+    }
+
+    override suspend fun generate(prompt: String, maxNewTokens: Int): String {
+        return if (modelManager.isDownloaded) {
+            try {
+                primary.generate(prompt, maxNewTokens)
+            } catch (e: Throwable) {
+                fallback.generate(prompt, maxNewTokens)
+            }
+        } else {
+            fallback.generate(prompt, maxNewTokens)
+        }
+    }
 }

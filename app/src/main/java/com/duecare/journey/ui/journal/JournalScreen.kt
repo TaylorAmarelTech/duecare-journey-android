@@ -1,6 +1,5 @@
 package com.duecare.journey.ui.journal
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
@@ -28,14 +28,17 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,92 +50,89 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.duecare.journey.journal.AssessmentVerdict
 import com.duecare.journey.journal.EntryKind
-import com.duecare.journey.journal.FeePayment
 import com.duecare.journey.journal.JournalEntry
 import com.duecare.journey.journal.JourneyStage
-import com.duecare.journey.journal.LegalAssessment
-import com.duecare.journey.journal.Party
-import com.duecare.journey.journal.sample.SampleData
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 private val DateFmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
 
-/**
- * The flagship Journal screen for v0.2.0.
- *
- * Shows two real entries (recruiter message + fee payment) on the
- * PH→HK domestic-worker corridor, demonstrating the harm-reduction
- * north star: the fee-payment row is flagged as ILLEGAL but
- * remains recorded faithfully, with a "Start refund claim" CTA the
- * worker chooses to act on or not.
- *
- * Sample data is populated via [SampleData] until v1 MVP wires up
- * the real journal-entry creation UI. The plumbing (JournalEntry +
- * FeePayment + LegalAssessment + Party + JournalRepository) is
- * already real — this screen reads the same shapes the real DB
- * will use.
- */
 @Composable
-fun JournalScreen(padding: PaddingValues) {
-    var detailEntry by remember { mutableStateOf<DetailContent?>(null) }
-    val entries = remember { SampleData.sampleJournalEntries }
-    val partiesById = remember {
-        SampleData.sampleParties.associateBy { it.id }
-    }
-    val payment = remember { SampleData.trainingFeePayment }
-    val assessment = remember { SampleData.trainingFeeAssessment }
+fun JournalScreen(
+    padding: PaddingValues,
+    vm: JournalViewModel = hiltViewModel(),
+) {
+    val state by vm.state.collectAsState()
+    var detailEntry by remember { mutableStateOf<JournalEntry?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(padding)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(padding),
     ) {
-        StageHeader(JourneyStage.PRE_DEPARTURE, corridor = "PH-HK")
-        Spacer(Modifier.height(12.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(entries, key = { it.id }) { entry ->
-                JournalEntryCard(
-                    entry = entry,
-                    partiesById = partiesById,
-                    feePayment = if (entry.kind == EntryKind.EXPENSE) payment else null,
-                    assessment = if (entry.kind == EntryKind.EXPENSE) assessment else null,
-                    onClick = {
-                        detailEntry = DetailContent(
-                            entry = entry,
-                            payment = if (entry.kind == EntryKind.EXPENSE) payment else null,
-                            assessment = if (entry.kind == EntryKind.EXPENSE) assessment else null,
-                            party = partiesById[entry.parties.firstOrNull()],
-                        )
-                    },
-                )
-            }
-            item {
-                Spacer(Modifier.height(40.dp))
-                Text(
-                    text = "v0.2.0 — sample data. Real journal entry " +
-                        "creation, photo capture, and chat-driven event " +
-                        "recording land in the v1 MVP build (week of " +
-                        "2026-05-19).",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            StageHeader(state.stage, state.corridor)
+            Spacer(Modifier.height(12.dp))
+            if (state.entries.isEmpty()) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .padding(40.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text(
+                        "No entries yet — tap + to add one. Photos of " +
+                            "receipts, recruiter messages, or anything " +
+                            "you want to remember and later prove.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(state.entries, key = { it.id }) { entry ->
+                        JournalEntryCard(entry = entry, onClick = { detailEntry = entry })
+                    }
+                    item { Spacer(Modifier.height(80.dp)) }   // FAB clearance
+                }
             }
         }
+
+        ExtendedFloatingActionButton(
+            onClick = { showAddDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+            icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+            text = { Text("Add entry") },
+        )
     }
 
-    detailEntry?.let { content ->
-        EntryDetailDialog(content, onDismiss = { detailEntry = null })
+    detailEntry?.let { entry ->
+        EntryDetailDialog(entry, onDismiss = { detailEntry = null })
+    }
+    if (showAddDialog) {
+        AddEntryDialog(
+            currentStage = state.stage,
+            onDismiss = { showAddDialog = false },
+            onSave = { stage, kind, title, body ->
+                vm.addEntry(stage, kind, title, body)
+                showAddDialog = false
+            },
+        )
     }
 }
 
 @Composable
-private fun StageHeader(stage: JourneyStage, corridor: String) {
+private fun StageHeader(stage: JourneyStage, corridor: String?) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         shape = RoundedCornerShape(12.dp),
@@ -149,7 +149,7 @@ private fun StageHeader(stage: JourneyStage, corridor: String) {
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "Corridor: $corridor",
+                    text = "Corridor: ${corridor ?: "(not set)"}",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -159,19 +159,9 @@ private fun StageHeader(stage: JourneyStage, corridor: String) {
 }
 
 @Composable
-private fun JournalEntryCard(
-    entry: JournalEntry,
-    partiesById: Map<String, Party>,
-    feePayment: FeePayment?,
-    assessment: LegalAssessment?,
-    onClick: () -> Unit,
-) {
-    val borderColor = when (assessment?.workerVerdict) {
-        AssessmentVerdict.ILLEGAL -> Color(0xFFEF4444)
-        AssessmentVerdict.GREY -> Color(0xFFF59E0B)
-        AssessmentVerdict.LEGAL -> Color(0xFF10B981)
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
+private fun JournalEntryCard(entry: JournalEntry, onClick: () -> Unit) {
+    val borderColor = if (entry.taggedConcerns.isNotEmpty()) Color(0xFFEF4444)
+    else MaterialTheme.colorScheme.outlineVariant
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -207,21 +197,38 @@ private fun JournalEntryCard(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            entry.parties.firstOrNull()?.let { partyId ->
-                partiesById[partyId]?.let { party ->
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = " ${party.name}" +
-                            (party.licenseNumber?.let { "  (License: $it)" } ?: ""),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            if (entry.taggedConcerns.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                ConcernsBanner(entry.taggedConcerns)
             }
-            if (feePayment != null && assessment != null) {
-                Spacer(Modifier.height(10.dp))
-                AssessmentBanner(assessment, payment = feePayment)
-            }
+        }
+    }
+}
+
+@Composable
+private fun ConcernsBanner(concerns: List<String>) {
+    Surface(
+        color = Color(0xFFEF4444).copy(alpha = 0.10f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.PriorityHigh,
+                contentDescription = null,
+                tint = Color(0xFFEF4444),
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Flagged: ${concerns.joinToString(", ")}",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFEF4444),
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -248,121 +255,36 @@ private fun EntryKindIcon(kind: EntryKind) {
 }
 
 @Composable
-private fun AssessmentBanner(assessment: LegalAssessment, payment: FeePayment) {
-    val (bannerColor: Color, bannerLabel: String) = when (assessment.workerVerdict) {
-        AssessmentVerdict.ILLEGAL -> Color(0xFFEF4444) to "Flagged ILLEGAL by harness"
-        AssessmentVerdict.GREY -> Color(0xFFF59E0B) to "Legally GREY — review"
-        AssessmentVerdict.LEGAL -> Color(0xFF10B981) to "Assessed LEGAL"
-        AssessmentVerdict.UNVERIFIED -> Color(0xFF6B7280) to "Not yet assessed"
-    }
-    Surface(
-        color = bannerColor.copy(alpha = 0.10f),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Outlined.PriorityHigh,
-                contentDescription = null,
-                tint = bannerColor,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = bannerLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = bannerColor,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "${assessment.controllingStatute} — tap to review",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EntryDetailDialog(content: DetailContent, onDismiss: () -> Unit) {
+private fun EntryDetailDialog(entry: JournalEntry, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            if (content.payment != null && content.assessment?.workerVerdict == AssessmentVerdict.ILLEGAL) {
-                Button(
-                    onClick = { /* v1: launch RefundClaim flow */ onDismiss() },
-                ) { Text("Start refund claim") }
-            } else {
-                TextButton(onClick = onDismiss) { Text("Close") }
-            }
-        },
-        dismissButton = {
-            if (content.payment != null && content.assessment?.workerVerdict == AssessmentVerdict.ILLEGAL) {
-                OutlinedButton(onClick = onDismiss) { Text("Not now") }
-            }
-        },
-        title = {
-            Text(
-                content.entry.title,
-                style = MaterialTheme.typography.titleMedium,
-            )
-        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text(entry.title, style = MaterialTheme.typography.titleMedium) },
         text = {
             Column {
                 Text(
-                    DateFmt.format(Date(content.entry.timestampMillis)),
+                    DateFmt.format(Date(entry.timestampMillis)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text("Stage: ${entry.stage.label()}", style = MaterialTheme.typography.labelSmall)
+                Text("Kind: ${entry.kind.name}", style = MaterialTheme.typography.labelSmall)
                 Spacer(Modifier.height(10.dp))
-                Text(content.entry.body, style = MaterialTheme.typography.bodyMedium)
-                content.party?.let {
+                Text(entry.body, style = MaterialTheme.typography.bodyMedium)
+                if (entry.taggedConcerns.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Party: ${it.name}" +
-                            (it.licenseNumber?.let { ln -> "\nLicense: $ln (${it.licenseStatus})" } ?: ""),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                if (content.payment != null && content.assessment != null) {
-                    Spacer(Modifier.height(10.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Legal assessment",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "Verdict: ${content.assessment.workerVerdict.name}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Concerns: ${entry.taggedConcerns.joinToString(", ")}",
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color(0xFFEF4444),
-                        fontWeight = FontWeight.Medium,
                     )
+                }
+                if (entry.grepHits.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        "Statute: ${content.assessment.controllingStatute}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Text(
-                        "Convention: ${content.assessment.controllingConvention}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        content.assessment.harnessReasoning,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        "Source: ${content.assessment.source.name} — " +
-                            "you can override this in the v1 MVP if you " +
-                            "disagree (the harness verdict stays in the audit log).",
+                        "GREP hits: ${entry.grepHits.joinToString(", ")}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -372,12 +294,67 @@ private fun EntryDetailDialog(content: DetailContent, onDismiss: () -> Unit) {
     )
 }
 
-private data class DetailContent(
-    val entry: JournalEntry,
-    val payment: FeePayment?,
-    val assessment: LegalAssessment?,
-    val party: Party?,
-)
+@Composable
+private fun AddEntryDialog(
+    currentStage: JourneyStage,
+    onDismiss: () -> Unit,
+    onSave: (JourneyStage, EntryKind, String, String) -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
+    var kind by remember { mutableStateOf(EntryKind.NOTE) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(
+                onClick = { onSave(currentStage, kind, title, body) },
+                enabled = title.isNotBlank(),
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+        },
+        title = { Text("Add a journal entry") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = body,
+                    onValueChange = { body = it },
+                    label = { Text("Details") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 6,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text("Type", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    EntryKind.entries.forEach { k ->
+                        OutlinedButton(
+                            onClick = { kind = k },
+                            modifier = Modifier.padding(0.dp),
+                        ) {
+                            Text(
+                                k.name.lowercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (kind == k) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
 
 private fun JourneyStage.label(): String = when (this) {
     JourneyStage.PRE_DEPARTURE -> "Pre-departure"

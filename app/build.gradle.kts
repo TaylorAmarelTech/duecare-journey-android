@@ -13,8 +13,8 @@ android {
         applicationId = "com.duecare.journey"
         minSdk = 26              // Android 8.0
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0-flagship-journal"
+        versionCode = 3
+        versionName = "0.3.0-onboarding-chat-mediapipe"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -84,13 +84,20 @@ dependencies {
     // ---- DataStore (preferences) ----
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // ---- LiteRT (inference layer) ----
-    // The Maven coordinates here track AI Edge / LiteRT 1.0+. Pin
-    // via a version catalog when v1 build starts.
+    // ---- LiteRT (low-level runtime) ----
     implementation("com.google.ai.edge.litert:litert:1.0.1")
     implementation("com.google.ai.edge.litert:litert-support:1.0.1")
-    // (Optional) NNAPI delegate
     implementation("com.google.ai.edge.litert:litert-gpu:1.0.1")
+
+    // ---- MediaPipe LLM Inference (high-level wrapper for Gemma) ----
+    // This is the primary path for on-device Gemma. The .task model
+    // file is downloaded on first use via ModelManager (not bundled
+    // in the APK — would be 1.4 GB+).
+    implementation("com.google.mediapipe:tasks-genai:0.10.18")
+
+    // ---- OkHttp for the model download flow ----
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // ---- Image loading ----
     implementation("io.coil-kt:coil-compose:2.5.0")

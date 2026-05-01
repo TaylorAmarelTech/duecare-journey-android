@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Description
@@ -19,15 +18,34 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.duecare.journey.journal.JourneyStage
+import com.duecare.journey.onboarding.OnboardingPrefs
+import com.duecare.journey.ui.advice.AdviceScreen
 import com.duecare.journey.ui.journal.JournalScreen
+import com.duecare.journey.ui.onboarding.OnboardingScreen
+import com.duecare.journey.ui.settings.SettingsScreen
 import com.duecare.journey.ui.theme.DuecareJourneyTheme
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -47,6 +65,25 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@HiltViewModel
+class RootViewModel @Inject constructor(
+    val onboarding: OnboardingPrefs,
+) : ViewModel() {
+
+    val isOnboardingComplete: StateFlow<Boolean?> = onboarding.isComplete
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null,           // null = "still loading"
+        )
+
+    fun completeOnboarding(stage: JourneyStage, corridor: String?) {
+        viewModelScope.launch {
+            onboarding.complete(stage, corridor)
+        }
+    }
+}
+
 private enum class Tab(val label: String) {
     JOURNAL("Journal"),
     CHAT("Advice"),
@@ -55,7 +92,18 @@ private enum class Tab(val label: String) {
 }
 
 @Composable
-private fun JourneyAppRoot() {
+private fun JourneyAppRoot(rootVm: RootViewModel = hiltViewModel()) {
+    val onboardingComplete by rootVm.isOnboardingComplete.collectAsState()
+
+    when (onboardingComplete) {
+        null -> Unit                                         // loading splash; keep blank
+        false -> OnboardingScreen(onComplete = rootVm::completeOnboarding)
+        true -> MainTabNav()
+    }
+}
+
+@Composable
+private fun MainTabNav() {
     var current by remember { mutableStateOf(Tab.JOURNAL) }
     Scaffold(
         bottomBar = {
@@ -83,44 +131,19 @@ private fun JourneyAppRoot() {
     ) { padding ->
         when (current) {
             Tab.JOURNAL -> JournalScreen(padding)
-            Tab.CHAT -> AdviceScreenStub(padding)
-            Tab.EXPORT -> ExportScreenStub(padding)
-            Tab.SETTINGS -> SettingsScreenStub(padding)
+            Tab.CHAT -> AdviceScreen(padding)
+            Tab.EXPORT -> ExportPlaceholder(padding)
+            Tab.SETTINGS -> SettingsScreen(padding)
         }
     }
 }
 
-// JournalScreen lives in com.duecare.journey.ui.journal — wired below.
-
 @Composable
-private fun AdviceScreenStub(padding: PaddingValues) {
+private fun ExportPlaceholder(padding: PaddingValues) {
     Text(
-        text = "Advice — chat with Gemma 4 (on-device)\n" +
-            "(stub: chat surface ports here from the desktop UI in v1 MVP, " +
-            "with journal context auto-injected into each prompt)",
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(24.dp),
-    )
-}
-
-@Composable
-private fun ExportScreenStub(padding: PaddingValues) {
-    Text(
-        text = "Complaint packet — generate a PDF from your journal\n" +
-            "(stub: ComplaintPacketExporter wires up in v1 MVP)",
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(24.dp),
-    )
-}
-
-@Composable
-private fun SettingsScreenStub(padding: PaddingValues) {
-    Text(
-        text = "Settings — model, language, app lock, panic wipe",
+        text = "Complaint packet export — generates a PDF from your journal " +
+            "with the right NGO/regulator address and a draft narrative. " +
+            "Ships in v0.4 (week of 2026-05-19).",
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
