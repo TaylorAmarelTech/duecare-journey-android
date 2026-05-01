@@ -67,7 +67,7 @@ enum class EntryKind {
  */
 class JournalConverters {
 
-    private val sep = "\u001F"
+    private val sep = ""
 
     @TypeConverter
     fun stringListToString(value: List<String>): String =
@@ -77,15 +77,31 @@ class JournalConverters {
     fun stringToStringList(value: String): List<String> =
         if (value.isEmpty()) emptyList() else value.split(sep)
 
-    @TypeConverter
-    fun stageToString(value: JourneyStage): String = value.name
+    // ---- v0.1 enums ----
+    @TypeConverter fun stageToString(v: JourneyStage): String = v.name
+    @TypeConverter fun stringToStage(s: String): JourneyStage = JourneyStage.valueOf(s)
+    @TypeConverter fun kindToString(v: EntryKind): String = v.name
+    @TypeConverter fun stringToKind(s: String): EntryKind = EntryKind.valueOf(s)
 
-    @TypeConverter
-    fun stringToStage(value: String): JourneyStage = JourneyStage.valueOf(value)
-
-    @TypeConverter
-    fun kindToString(value: EntryKind): String = value.name
-
-    @TypeConverter
-    fun stringToKind(value: String): EntryKind = EntryKind.valueOf(value)
+    // ---- v2 enums (Party / FeePayment / LegalAssessment / RefundClaim) ----
+    @TypeConverter fun partyKindToString(v: PartyKind): String = v.name
+    @TypeConverter fun stringToPartyKind(s: String): PartyKind = PartyKind.valueOf(s)
+    @TypeConverter fun licenseStatusToString(v: LicenseStatus): String = v.name
+    @TypeConverter fun stringToLicenseStatus(s: String): LicenseStatus =
+        LicenseStatus.valueOf(s)
+    @TypeConverter fun paymentMethodToString(v: PaymentMethod): String = v.name
+    @TypeConverter fun stringToPaymentMethod(s: String): PaymentMethod =
+        PaymentMethod.valueOf(s)
+    @TypeConverter fun assessmentTargetToString(v: AssessmentTarget): String = v.name
+    @TypeConverter fun stringToAssessmentTarget(s: String): AssessmentTarget =
+        AssessmentTarget.valueOf(s)
+    @TypeConverter fun assessmentVerdictToString(v: AssessmentVerdict): String = v.name
+    @TypeConverter fun stringToAssessmentVerdict(s: String): AssessmentVerdict =
+        AssessmentVerdict.valueOf(s)
+    @TypeConverter fun assessmentSourceToString(v: AssessmentSource): String = v.name
+    @TypeConverter fun stringToAssessmentSource(s: String): AssessmentSource =
+        AssessmentSource.valueOf(s)
+    @TypeConverter fun refundStatusToString(v: RefundStatus): String = v.name
+    @TypeConverter fun stringToRefundStatus(s: String): RefundStatus =
+        RefundStatus.valueOf(s)
 }

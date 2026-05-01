@@ -3,8 +3,12 @@ package com.duecare.journey.di
 import android.content.Context
 import com.duecare.journey.inference.GemmaInferenceEngine
 import com.duecare.journey.inference.StubGemmaEngine
+import com.duecare.journey.journal.FeePaymentDao
 import com.duecare.journey.journal.JournalDao
 import com.duecare.journey.journal.JournalDatabase
+import com.duecare.journey.journal.LegalAssessmentDao
+import com.duecare.journey.journal.PartyDao
+import com.duecare.journey.journal.RefundClaimDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,6 +22,11 @@ import javax.inject.Singleton
  * Inference: bound to [StubGemmaEngine] for the v0.1 skeleton build.
  * v1 MVP swaps in [com.duecare.journey.inference.LiteRTGemmaEngine]
  * once the LiteRT model bundle is published.
+ *
+ * Journal v2: provides DAOs for the new entity set (Party,
+ * FeePayment, LegalAssessment, RefundClaim) alongside the original
+ * JournalDao. All DAOs are backed by a single SQLCipher-encrypted
+ * Room database (see [JournalDatabase]).
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -32,7 +41,13 @@ object AppModule {
     fun provideJournalDatabase(@ApplicationContext ctx: Context): JournalDatabase =
         JournalDatabase.create(ctx)
 
-    @Provides
-    @Singleton
-    fun provideJournalDao(db: JournalDatabase): JournalDao = db.journalDao()
+    // ---- DAOs ----
+    @Provides fun provideJournalDao(db: JournalDatabase): JournalDao = db.journalDao()
+    @Provides fun providePartyDao(db: JournalDatabase): PartyDao = db.partyDao()
+    @Provides fun provideFeePaymentDao(db: JournalDatabase): FeePaymentDao =
+        db.feePaymentDao()
+    @Provides fun provideLegalAssessmentDao(db: JournalDatabase): LegalAssessmentDao =
+        db.legalAssessmentDao()
+    @Provides fun provideRefundClaimDao(db: JournalDatabase): RefundClaimDao =
+        db.refundClaimDao()
 }
