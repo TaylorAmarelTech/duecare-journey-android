@@ -386,19 +386,7 @@ private fun AddEntryDialog(
                 Spacer(Modifier.height(8.dp))
                 Text("Type", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(4.dp))
-                androidx.compose.foundation.layout.FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    EntryKind.entries.forEach { k ->
-                        val picked = kind == k
-                        androidx.compose.material3.FilterChip(
-                            selected = picked,
-                            onClick = { kind = k },
-                            label = { Text(k.name.lowercase()) },
-                        )
-                    }
-                }
+                EntryKindChips(kind, onPick = { kind = it })
             }
         },
     )
@@ -411,4 +399,21 @@ private fun JourneyStage.label(): String = when (this) {
     JourneyStage.EMPLOYED -> "Employed"
     JourneyStage.BETWEEN_EMPLOYERS -> "In country, no longer employed"
     JourneyStage.EXIT -> "Exit"
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun EntryKindChips(picked: EntryKind, onPick: (EntryKind) -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        EntryKind.entries.forEach { k ->
+            androidx.compose.material3.FilterChip(
+                selected = picked == k,
+                onClick = { onPick(k) },
+                label = { Text(k.name.lowercase()) },
+            )
+        }
+    }
 }
