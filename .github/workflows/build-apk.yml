@@ -42,10 +42,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+          # Single space-separated string -- the v3 action passes this
+          # straight to sdkmanager, which expects each package as a
+          # separate arg. The pipe-multiline form gets joined into ONE
+          # argument and sdkmanager rejects it as an unknown package.
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
