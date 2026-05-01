@@ -66,27 +66,36 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    fun downloadModel() {
+    fun downloadModel(allowCellular: Boolean = false) {
         viewModelScope.launch {
             _state.value = _state.value.copy(
                 isDownloading = true,
                 downloadProgress = 0,
                 downloadError = null,
+                isVerifying = false,
             )
             try {
-                modelManager.download().collect { p ->
+                modelManager.download(requireUnmetered = !allowCellular).collect { p ->
                     _state.value = _state.value.copy(
                         downloadProgress = p.percent,
                         isDownloading = !p.done,
+                        isVerifying = p.verifying,
                     )
                     if (p.done) refresh()
                 }
             } catch (e: Throwable) {
                 _state.value = _state.value.copy(
                     isDownloading = false,
+                    isVerifying = false,
                     downloadError = e.message ?: e::class.simpleName ?: "Download failed",
                 )
             }
+        }
+    }
+
+    fun setCustomUrl(url: String, sha256: String) {
+        viewModelScope.launch {
+            modelManager.setCustomUrl(url, sha256)
         }
     }
 
@@ -134,6 +143,7 @@ class SettingsViewModel @Inject constructor(
         val modelSizeMB: Long = 0L,
         val isDownloading: Boolean = false,
         val downloadProgress: Int = 0,
+        val isVerifying: Boolean = false,
         val downloadError: String? = null,
         val panicWiped: Boolean = false,
     )
@@ -222,7 +232,7 @@ fun SettingsScreen(
         SectionHeader("About")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
-                Text("Duecare Journey v0.4.0", fontWeight = FontWeight.Medium)
+                Text("Duecare Journey v0.5.0", fontWeight = FontWeight.Medium)
                 Text(
                     "github.com/TaylorAmarelTech/duecare-journey-android",
                     style = MaterialTheme.typography.bodySmall,
@@ -283,6 +293,7 @@ private fun ModelCard(
             Spacer(Modifier.height(12.dp))
             // Surface any prior download error first
             s.downloadError?.let { err ->
+                val isCellularRefusal = err.contains("metered") || err.contains("cellular")
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
@@ -295,6 +306,16 @@ private fun ModelCard(
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
                         Spacer(Modifier.height(6.dp))
+                        if (isCellularRefusal) {
+                            Button(
+                                onClick = {
+                                    vm.dismissDownloadError()
+                                    vm.downloadModel(allowCellular = true)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text("Start anyway on cellular (~₱350 / 1.4 GB)") }
+                            Spacer(Modifier.height(6.dp))
+                        }
                         OutlinedButton(
                             onClick = { vm.dismissDownloadError() },
                             modifier = Modifier.fillMaxWidth(),
@@ -306,7 +327,10 @@ private fun ModelCard(
             when {
                 s.isDownloading -> {
                     Text(
-                        "Downloading… ${s.downloadProgress}%",
+                        if (s.isVerifying)
+                            "Verifying file integrity… (sha256)"
+                        else
+                            "Downloading… ${s.downloadProgress}%",
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Spacer(Modifier.height(6.dp))
@@ -337,11 +361,25 @@ private fun ModelCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            "~1.4 GB. About ₱350 on Globe prepaid, free on " +
+                                "Wi-Fi. Takes ~10 min on home Wi-Fi.",
+                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { vm.downloadModel() },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Try auto-download (~1.4 GB)")
+                        Text("Download via Wi-Fi (~1.4 GB)")
                     }
                     Spacer(Modifier.height(6.dp))
                     OutlinedButton(
@@ -350,8 +388,59 @@ private fun ModelCard(
                     ) {
                         Text("Use my own model file")
                     }
+                    Spacer(Modifier.height(8.dp))
+                    CustomUrlSection(vm)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CustomUrlSection(vm: SettingsViewModel) {
+    var expanded by remember { mutableStateOf(false) }
+    var url by remember { mutableStateOf("") }
+    var sha by remember { mutableStateOf("") }
+    androidx.compose.material3.TextButton(
+        onClick = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(if (expanded) "Hide custom URL" else "Use a custom download URL")
+    }
+    if (expanded) {
+        androidx.compose.material3.OutlinedTextField(
+            value = url,
+            onValueChange = { url = it },
+            label = { Text("Direct download URL") },
+            placeholder = { Text("https://huggingface.co/...resolve/main/...litertlm") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(6.dp))
+        androidx.compose.material3.OutlinedTextField(
+            value = sha,
+            onValueChange = { sha = it },
+            label = { Text("SHA-256 (optional)") },
+            placeholder = { Text("hex digest — leave blank to skip verify") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Button(
+                onClick = {
+                    vm.setCustomUrl(url, sha)
+                    expanded = false
+                },
+                enabled = url.isNotBlank(),
+            ) { Text("Save") }
+            OutlinedButton(
+                onClick = {
+                    url = ""
+                    sha = ""
+                    vm.setCustomUrl("", "")
+                },
+            ) { Text("Reset to default") }
         }
     }
 }

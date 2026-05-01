@@ -13,8 +13,8 @@ android {
         applicationId = "com.duecare.journey"
         minSdk = 26              // Android 8.0
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.4.0-real-fixes-and-sideload"
+        versionCode = 6
+        versionName = "0.5.0-gemma4-sha-verify-custom-url"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
