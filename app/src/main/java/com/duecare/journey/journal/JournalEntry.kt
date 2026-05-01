@@ -43,6 +43,7 @@ enum class JourneyStage {
     IN_TRANSIT,
     ARRIVED,
     EMPLOYED,
+    BETWEEN_EMPLOYERS,    // contract ended/quit/fired, still in destination country
     EXIT,
 }
 

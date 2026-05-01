@@ -13,8 +13,8 @@ android {
         applicationId = "com.duecare.journey"
         minSdk = 26              // Android 8.0
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0-onboarding-chat-mediapipe"
+        versionCode = 4
+        versionName = "0.3.1-onboarding-fix-between-employers"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }

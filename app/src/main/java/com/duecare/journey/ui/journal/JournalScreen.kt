@@ -361,5 +361,6 @@ private fun JourneyStage.label(): String = when (this) {
     JourneyStage.IN_TRANSIT -> "In transit"
     JourneyStage.ARRIVED -> "Arrived"
     JourneyStage.EMPLOYED -> "Employed"
+    JourneyStage.BETWEEN_EMPLOYERS -> "In country, no longer employed"
     JourneyStage.EXIT -> "Exit"
 }
