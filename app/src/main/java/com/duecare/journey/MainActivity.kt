@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.duecare.journey.ui.journal.JournalScreen
 import com.duecare.journey.ui.theme.DuecareJourneyTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -81,7 +82,7 @@ private fun JourneyAppRoot() {
         },
     ) { padding ->
         when (current) {
-            Tab.JOURNAL -> JournalScreenStub(padding)
+            Tab.JOURNAL -> JournalScreen(padding)
             Tab.CHAT -> AdviceScreenStub(padding)
             Tab.EXPORT -> ExportScreenStub(padding)
             Tab.SETTINGS -> SettingsScreenStub(padding)
@@ -89,17 +90,7 @@ private fun JourneyAppRoot() {
     }
 }
 
-@Composable
-private fun JournalScreenStub(padding: PaddingValues) {
-    Text(
-        text = "Journal — your encrypted timeline\n" +
-            "(stub: real entries land here in v1 MVP)",
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(24.dp),
-    )
-}
+// JournalScreen lives in com.duecare.journey.ui.journal — wired below.
 
 @Composable
 private fun AdviceScreenStub(padding: PaddingValues) {
