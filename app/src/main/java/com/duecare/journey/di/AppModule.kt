@@ -16,6 +16,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import javax.inject.Singleton
 
 /**
@@ -65,6 +67,12 @@ object AppModule {
  * Tries MediaPipe first if a model is downloaded; falls back to the
  * stub on any failure. Lets the chat UI work end-to-end whether or
  * not the worker has downloaded the model yet.
+ *
+ * v0.4 fix: streamGenerate previously wrapped a Flow factory call in
+ * try/catch, which is dead code (Flow exceptions surface at collect
+ * time, not factory time). Now uses Flow.catch + emitAll so a
+ * MediaPipe failure mid-stream actually falls back to the stub
+ * instead of propagating an exception to the UI.
  */
 internal class SmartGemmaEngine(
     private val primary: MediaPipeGemmaEngine,
@@ -81,12 +89,15 @@ internal class SmartGemmaEngine(
         temperature: Float,
         topK: Int,
         topP: Float,
-    ) = if (modelManager.isDownloaded) {
-        try {
-            primary.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
-        } catch (e: Throwable) {
-            fallback.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
-        }
+    ): kotlinx.coroutines.flow.Flow<String> = if (modelManager.isDownloaded) {
+        primary.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
+            .catch { _ ->
+                emitAll(
+                    fallback.streamGenerate(
+                        prompt, maxNewTokens, temperature, topK, topP,
+                    )
+                )
+            }
     } else {
         fallback.streamGenerate(prompt, maxNewTokens, temperature, topK, topP)
     }

@@ -82,6 +82,12 @@ class JournalViewModel @Inject constructor(
             journal.add(stage = stage, kind = kind, title = title, body = body)
         }
     }
+
+    fun deleteEntry(id: String) {
+        viewModelScope.launch {
+            journal.delete(id)
+        }
+    }
 }
 
 data class JournalUiState(

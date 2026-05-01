@@ -69,6 +69,7 @@ fun JournalScreen(
     val state by vm.state.collectAsState()
     var detailEntry by remember { mutableStateOf<JournalEntry?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -117,7 +118,43 @@ fun JournalScreen(
     }
 
     detailEntry?.let { entry ->
-        EntryDetailDialog(entry, onDismiss = { detailEntry = null })
+        EntryDetailDialog(
+            entry,
+            onDismiss = { detailEntry = null },
+            onDelete = {
+                pendingDeleteId = entry.id
+                detailEntry = null
+            },
+        )
+    }
+    pendingDeleteId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = null },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        vm.deleteEntry(id)
+                        pendingDeleteId = null
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { pendingDeleteId = null }) {
+                    Text("Cancel")
+                }
+            },
+            title = { Text("Delete this entry?") },
+            text = {
+                Text(
+                    "This will remove the entry from your journal. You " +
+                        "can't undo this. If the entry was evidence for " +
+                        "a future complaint, consider exporting it first.",
+                )
+            },
+        )
     }
     if (showAddDialog) {
         AddEntryDialog(
@@ -255,10 +292,22 @@ private fun EntryKindIcon(kind: EntryKind) {
 }
 
 @Composable
-private fun EntryDetailDialog(entry: JournalEntry, onDismiss: () -> Unit) {
+private fun EntryDetailDialog(
+    entry: JournalEntry,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = {
+            TextButton(
+                onClick = onDelete,
+                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("Delete") }
+        },
         title = { Text(entry.title, style = MaterialTheme.typography.titleMedium) },
         text = {
             Column {
@@ -337,18 +386,17 @@ private fun AddEntryDialog(
                 Spacer(Modifier.height(8.dp))
                 Text("Type", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     EntryKind.entries.forEach { k ->
-                        OutlinedButton(
+                        val picked = kind == k
+                        androidx.compose.material3.FilterChip(
+                            selected = picked,
                             onClick = { kind = k },
-                            modifier = Modifier.padding(0.dp),
-                        ) {
-                            Text(
-                                k.name.lowercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (kind == k) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        }
+                            label = { Text(k.name.lowercase()) },
+                        )
                     }
                 }
             }

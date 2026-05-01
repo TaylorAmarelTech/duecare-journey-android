@@ -136,15 +136,22 @@ class ModelManager @Inject constructor(
         val url: String,
         val expectedSizeBytes: Long,
         val sha256: String?,           // optional — null skips verification
+        val requiresAuth: Boolean,
     ) {
         GEMMA2_2B_IT_CPU_INT4(
             displayName = "Gemma 2 (2B INT4, CPU)",
             fileName = "gemma-2b-it-cpu-int4.task",
-            // MediaPipe samples mirror — replace with HF Hub once we
-            // publish our own task bundle for Gemma 4.
+            // Google's Gemma 2 .task files live on Kaggle Models +
+            // HF Hub, both of which require authentication. There is
+            // no "just works" public URL. The URL below is a known
+            // MediaPipe-published mirror that may or may not respond
+            // depending on Google's CDN state — the user should
+            // sideload via Settings -> "Use my own model file" if the
+            // download fails.
             url = "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-cpu-int4/float16/1/gemma-2b-it-cpu-int4.bin",
             expectedSizeBytes = 1_350_000_000L,
             sha256 = null,
+            requiresAuth = true,
         ),
         GEMMA2_2B_IT_GPU_INT4(
             displayName = "Gemma 2 (2B INT4, GPU)",
@@ -152,7 +159,29 @@ class ModelManager @Inject constructor(
             url = "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-gpu-int4/float16/1/gemma-2b-it-gpu-int4.bin",
             expectedSizeBytes = 1_350_000_000L,
             sha256 = null,
+            requiresAuth = true,
         ),
+    }
+
+    /** Import a model file the worker downloaded externally (e.g.
+     *  from Kaggle Models or HF Hub via their browser). Copies the
+     *  source into the app's encrypted internal storage with the
+     *  expected file name. */
+    suspend fun importLocalFile(sourceUri: android.net.Uri,
+                                  contentResolver: android.content.ContentResolver): Boolean {
+        return try {
+            val target = modelFile()
+            target.parentFile?.mkdirs()
+            contentResolver.openInputStream(sourceUri)?.use { input ->
+                target.outputStream().use { output ->
+                    input.copyTo(output, bufferSize = 64 * 1024)
+                }
+            }
+            target.exists() && target.length() > MIN_VALID_SIZE_BYTES
+        } catch (e: Throwable) {
+            android.util.Log.w(TAG, "importLocalFile failed: $e")
+            false
+        }
     }
 
     private companion object {

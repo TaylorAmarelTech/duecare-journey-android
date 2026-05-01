@@ -102,14 +102,29 @@ fun AdviceScreen(padding: PaddingValues, vm: AdviceViewModel = hiltViewModel()) 
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                     Spacer(Modifier.height(20.dp))
+                    val suggestedSend: (String) -> Unit = { q ->
+                        if (!inFlight) {
+                            inFlight = true
+                            streamingText = ""
+                            input = ""
+                            vm.askStreaming(
+                                question = q,
+                                onChunk = { streamingText = it },
+                                onComplete = {
+                                    streamingText = null
+                                    inFlight = false
+                                },
+                            )
+                        }
+                    }
                     SuggestedPrompt("Is a ₱50,000 \"training fee\" legal?",
-                        onTap = { input = it })
+                        onTap = suggestedSend)
                     Spacer(Modifier.height(8.dp))
                     SuggestedPrompt("My recruiter is keeping my passport \"for safekeeping\". Is that allowed?",
-                        onTap = { input = it })
+                        onTap = suggestedSend)
                     Spacer(Modifier.height(8.dp))
                     SuggestedPrompt("My loan APR is 68% per year. Is this legal in Hong Kong?",
-                        onTap = { input = it })
+                        onTap = suggestedSend)
                 }
             }
         } else {

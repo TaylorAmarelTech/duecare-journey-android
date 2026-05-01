@@ -48,6 +48,8 @@ class JournalRepository @Inject constructor(
         )
     }
 
+    suspend fun delete(id: String) = dao.delete(id)
+
     /** Best-effort corridor inference from journal contents.
      *  Used by the advice layer for context-aware prompting. */
     suspend fun detectedCorridor(): String? {

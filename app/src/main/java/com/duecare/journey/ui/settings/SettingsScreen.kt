@@ -67,20 +67,53 @@ class SettingsViewModel @Inject constructor(
 
     fun downloadModel() {
         viewModelScope.launch {
-            modelManager.download().collect { p ->
+            _state.value = _state.value.copy(
+                isDownloading = true,
+                downloadProgress = 0,
+                downloadError = null,
+            )
+            try {
+                modelManager.download().collect { p ->
+                    _state.value = _state.value.copy(
+                        downloadProgress = p.percent,
+                        isDownloading = !p.done,
+                    )
+                    if (p.done) refresh()
+                }
+            } catch (e: Throwable) {
                 _state.value = _state.value.copy(
-                    downloadProgress = p.percent,
-                    isDownloading = !p.done,
+                    isDownloading = false,
+                    downloadError = e.message ?: e::class.simpleName ?: "Download failed",
                 )
-                if (p.done) refresh()
             }
         }
+    }
+
+    fun dismissDownloadError() {
+        _state.value = _state.value.copy(downloadError = null)
     }
 
     fun deleteModel() {
         viewModelScope.launch {
             mediaPipe.unload()
             modelManager.deleteCachedModel()
+            refresh()
+        }
+    }
+
+    fun importLocalModel(uri: android.net.Uri,
+                          contentResolver: android.content.ContentResolver) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                isDownloading = true,
+                downloadProgress = 0,
+                downloadError = null,
+            )
+            val ok = modelManager.importLocalFile(uri, contentResolver)
+            _state.value = _state.value.copy(
+                isDownloading = false,
+                downloadError = if (ok) null else "Import failed (file too small or unreadable)",
+            )
             refresh()
         }
     }
@@ -100,6 +133,7 @@ class SettingsViewModel @Inject constructor(
         val modelSizeMB: Long = 0L,
         val isDownloading: Boolean = false,
         val downloadProgress: Int = 0,
+        val downloadError: String? = null,
         val panicWiped: Boolean = false,
     )
 }
@@ -110,6 +144,14 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.state.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val filePicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            vm.importLocalModel(uri, context.contentResolver)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -119,7 +161,12 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         SectionHeader("On-device model")
-        ModelCard(s, vm)
+        ModelCard(s, vm, onPickFile = {
+            // Use a permissive MIME type — we accept any binary file
+            // and rely on MediaPipe to reject it if it's not a valid
+            // .task / .bin model.
+            filePicker.launch(arrayOf("application/octet-stream", "*/*"))
+        })
 
         SectionHeader("Privacy")
         Card(
@@ -174,7 +221,7 @@ fun SettingsScreen(
         SectionHeader("About")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
-                Text("Duecare Journey v0.3.0", fontWeight = FontWeight.Medium)
+                Text("Duecare Journey v0.4.0", fontWeight = FontWeight.Medium)
                 Text(
                     "github.com/TaylorAmarelTech/duecare-journey-android",
                     style = MaterialTheme.typography.bodySmall,
@@ -201,7 +248,11 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun ModelCard(s: SettingsViewModel.State, vm: SettingsViewModel) {
+private fun ModelCard(
+    s: SettingsViewModel.State,
+    vm: SettingsViewModel,
+    onPickFile: () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
             Text(
@@ -211,12 +262,46 @@ private fun ModelCard(s: SettingsViewModel.State, vm: SettingsViewModel) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "MediaPipe LLM Inference. ~1.4 GB download. Runs " +
-                    "entirely on your phone.",
+                "MediaPipe LLM Inference. ~1.4 GB. Runs entirely " +
+                    "on your phone after install.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Note: Google's Gemma model files are gated and may " +
+                    "require Kaggle Models or HuggingFace login to download. " +
+                    "If the auto-download fails, download the .task / .bin " +
+                    "file yourself from kaggle.com/models/google/gemma or " +
+                    "huggingface.co/litert-community then use 'Use my own " +
+                    "model file' below.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+            )
             Spacer(Modifier.height(12.dp))
+            // Surface any prior download error first
+            s.downloadError?.let { err ->
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(10.dp)) {
+                        Text(
+                            "Last download failed: $err",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedButton(
+                            onClick = { vm.dismissDownloadError() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Dismiss") }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
             when {
                 s.isDownloading -> {
                     Text(
@@ -244,8 +329,9 @@ private fun ModelCard(s: SettingsViewModel.State, vm: SettingsViewModel) {
                 }
                 else -> {
                     Text(
-                        "Status: not downloaded — using fallback (canned " +
-                            "responses) until you download.",
+                        "Status: not downloaded — chat is using fallback " +
+                            "(canned legal-citation responses) until a model " +
+                            "is available.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -254,7 +340,14 @@ private fun ModelCard(s: SettingsViewModel.State, vm: SettingsViewModel) {
                         onClick = { vm.downloadModel() },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Download model (~1.4 GB)")
+                        Text("Try auto-download (~1.4 GB)")
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = onPickFile,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Use my own model file")
                     }
                 }
             }

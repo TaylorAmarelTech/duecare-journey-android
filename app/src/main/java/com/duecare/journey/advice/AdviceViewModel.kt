@@ -80,14 +80,16 @@ class AdviceViewModel @Inject constructor(
         }
     }
 
+    /** Synchronous append. Setting StateFlow.value is thread-safe and
+     *  immediate; previously this used viewModelScope.launch which
+     *  raced with onComplete in askStreaming and could leave the
+     *  assistant bubble briefly invisible after stream end. */
     private fun appendMessage(role: ChatMessage.Role, text: String) {
-        viewModelScope.launch {
-            _messages.value = _messages.value + ChatMessage(
-                id = java.util.UUID.randomUUID().toString(),
-                role = role,
-                text = text,
-                timestampMillis = System.currentTimeMillis(),
-            )
-        }
+        _messages.value = _messages.value + ChatMessage(
+            id = java.util.UUID.randomUUID().toString(),
+            role = role,
+            text = text,
+            timestampMillis = System.currentTimeMillis(),
+        )
     }
 }

@@ -59,7 +59,11 @@ class MediaPipeGemmaEngine @Inject constructor(
         val opts = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelFile.absolutePath)
             .setMaxTopK(64)
-            .setMaxTokens(2048)
+            // Bumped from 2048 to 4096 — our prompt-with-journal-context
+            // can be 1000+ tokens, leaving little budget for output at
+            // 2048 total. 4096 gives ~3000 tokens for output even on
+            // long-context prompts.
+            .setMaxTokens(4096)
             .build()
         llm = LlmInference.createFromOptions(context, opts)
         Log.i(TAG, "MediaPipe LLM loaded")
