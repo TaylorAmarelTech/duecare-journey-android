@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The complaint-packet PDF is written to cacheDir/complaint-packets/
+         and exposed via FileProvider for the share intent. The journal DB
+         and attachment files are NOT exposed via any provider. -->
+    <cache-path name="complaint_packets" path="complaint-packets/" />
+</paths>

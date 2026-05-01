@@ -1,0 +1,16 @@
+# Built artifacts
+*.iml
+.gradle/
+build/
+.idea/
+local.properties
+*.apk
+*.aab
+*.task
+
+# Captures
+captures/
+
+# Native + KSP
+.cxx/
+.kotlin/

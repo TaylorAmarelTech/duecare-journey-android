@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose handles the actual theming; this resource theme is the
+         pre-Compose surface (splash, dialogs that don't use Compose). -->
+    <style name="Theme.DuecareJourney" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup posture: ALL EXCLUDED.
+
+  Per docs/android_app_architecture.md privacy posture, the journal
+  must NEVER be auto-backed-up to any cloud or local backup that the
+  worker did not explicitly invoke. allowBackup=false in the manifest
+  is the primary defense; this file is the belt-and-suspenders.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

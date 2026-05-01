@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      ===== PERMISSIONS POSTURE =====
+      The privacy doc (docs/android_app_architecture.md) commits to
+      strict minimums. Each permission below has a corresponding
+      load-bearing reason; nothing is requested speculatively.
+    -->
+
+    <!-- INTERNET: ONLY used for the first-launch model download.
+         A hard-coded host check in LiteRTGemmaEngine rejects all
+         other outbound requests. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- CAMERA: Optional. Requested at runtime when the worker taps
+         "Add photo to journal." Never used in the background. -->
+    <uses-permission android:name="android.permission.CAMERA"
+        android:required="false" />
+    <uses-feature android:name="android.hardware.camera"
+        android:required="false" />
+
+    <!-- POST_NOTIFICATIONS: For complaint-packet "ready to share"
+         notifications. Opt-in. Required for API 33+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- USE_BIOMETRIC / USE_FINGERPRINT: For app-lock on resume. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- FOREGROUND_SERVICE: For the inference foreground task during
+         long generations so Android doesn't kill the process. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- DELIBERATELY NOT REQUESTED:
+         - ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION (no geo by default)
+         - RECORD_AUDIO (no voice in v1)
+         - READ_CONTACTS / READ_SMS / READ_CALL_LOG
+         - WRITE_EXTERNAL_STORAGE (use scoped storage only)
+         - GET_ACCOUNTS
+         - any Play Services permission
+    -->
+
+    <application
+        android:name=".DuecareJourneyApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DuecareJourney"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.DuecareJourney">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- FileProvider for sharing the generated complaint packet PDF. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Duecare Journey</string>
+
+    <!-- Tabs -->
+    <string name="tab_journal">Journal</string>
+    <string name="tab_advice">Advice</string>
+    <string name="tab_export">Complaint</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Journal -->
+    <string name="journal_title">Your migration timeline</string>
+    <string name="journal_empty">No entries yet. Tap + to add your first.</string>
+    <string name="journal_add">Add entry</string>
+    <string name="journal_stage_pre_departure">Pre-departure</string>
+    <string name="journal_stage_in_transit">In transit</string>
+    <string name="journal_stage_arrived">Arrived</string>
+    <string name="journal_stage_employed">Employed</string>
+    <string name="journal_stage_exit">Exit</string>
+
+    <!-- Advice -->
+    <string name="advice_title">Ask a legal question</string>
+    <string name="advice_hint">Type a question. Gemma 4 reads your journal too.</string>
+    <string name="advice_send">Send</string>
+
+    <!-- Export -->
+    <string name="export_title">Generate complaint packet</string>
+    <string name="export_button">Build PDF</string>
+    <string name="export_hint">We never auto-send. You choose if and where.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_app_lock">Require app lock on resume</string>
+    <string name="settings_panic_wipe">Panic wipe — erase all journal data</string>
+    <string name="settings_language">Language</string>
+
+    <!-- Privacy banner shown on first launch -->
+    <string name="privacy_first_launch">All inference runs on your phone. No data leaves your device unless you explicitly export a complaint packet and choose where to send it.</string>
+</resources>

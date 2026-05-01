@@ -1,0 +1,98 @@
+name: Build APK
+
+# Builds an unsigned debug APK on every push or PR. The APK lands as a
+# downloadable artifact attached to each Actions run (Actions tab ->
+# the run -> "Artifacts" section at the bottom). Sideload to a phone:
+#
+#   adb install duecare-journey-debug.apk
+#
+# This workflow exists so you don't need a local Android Studio install
+# to test the app -- push a change, wait ~6-8 minutes, download the APK.
+# The first run also primes the Gradle dependency cache for subsequent
+# runs (~2-3 minutes after that).
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.5"
+          cache-read-only: false
+
+      - name: Show environment
+        run: |
+          java -version
+          gradle --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+      - name: Assemble debug APK
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Locate APK
+        id: locate
+        run: |
+          set -euo pipefail
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          echo "Found APK at $APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          ls -la "$APK"
+          # Print SHA256 so the user can verify integrity after download
+          sha256sum "$APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: duecare-journey-debug-apk
+          path: ${{ steps.locate.outputs.apk_path }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Build summary
+        if: always()
+        run: |
+          {
+            echo "## Build artifacts"
+            echo ""
+            echo "Download \`duecare-journey-debug-apk\` from the Artifacts"
+            echo "section of this workflow run, then sideload:"
+            echo ""
+            echo '```bash'
+            echo 'unzip duecare-journey-debug-apk.zip'
+            echo 'adb install app-debug.apk'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
