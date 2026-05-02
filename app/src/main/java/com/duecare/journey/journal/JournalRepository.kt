@@ -73,9 +73,11 @@ class JournalRepository @Inject constructor(
     suspend fun detectedCorridor(): String? {
         val recent = dao.recent(50)
         // crude heuristic: scan parties + body for known corridor markers.
+        // Covers the 12 corridors in DomainKnowledge.CorridorKnowledge.
         val text = recent.joinToString(" ") { "${it.title} ${it.body}" }
             .lowercase()
         return when {
+            // Asia → Gulf / Hong Kong / Singapore (the original 6)
             "hong kong" in text && "philippines" in text -> "PH-HK"
             "hong kong" in text && "indonesia" in text -> "ID-HK"
             "saudi" in text && "philippines" in text -> "PH-SA"
@@ -83,6 +85,16 @@ class JournalRepository @Inject constructor(
             "qatar" in text && "nepal" in text -> "NP-QA"
             "saudi" in text && "bangladesh" in text -> "BD-SA"
             "singapore" in text && "indonesia" in text -> "ID-SG"
+            // Latin America
+            ("united states" in text || "usa" in text || "u.s." in text) &&
+                ("mexico" in text || "mexican" in text) -> "MX-US"
+            "colombia" in text && "venezuela" in text -> "VE-CO"
+            // West Africa → Lebanon (kafala)
+            "lebanon" in text && ("ghana" in text || "ghanaian" in text) -> "GH-LB"
+            "lebanon" in text && ("nigeria" in text || "nigerian" in text) -> "NG-LB"
+            // Refugee corridors
+            "germany" in text && ("syria" in text || "syrian" in text) -> "SY-DE"
+            "poland" in text && ("ukraine" in text || "ukrainian" in text) -> "UA-PL"
             else -> null
         }
     }

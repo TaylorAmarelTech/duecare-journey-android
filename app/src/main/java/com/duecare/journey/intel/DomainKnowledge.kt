@@ -510,6 +510,207 @@ object DomainKnowledge {
                         "+65 6298 7831", "https://twc2.org.sg"),
                 ),
             ),
+            // ── Latin America ────────────────────────────────────
+            Corridor(
+                code = "MX-US",
+                originName = "Mexico",
+                destName = "United States",
+                placementFeeCapUsd = 0.0,
+                placementFeeNote = "Both H-2A (agricultural) and H-2B " +
+                    "(non-agricultural) US visa programs prohibit the " +
+                    "worker from paying recruitment fees per US DOL " +
+                    "regulation 20 CFR 655.135(j) and the H-2 " +
+                    "Migrant-Labor Protections. Recoverable from US " +
+                    "employer + Mexican recruiter jointly.",
+                originRegulator = Regulator(
+                    name = "Secretaría del Trabajo y Previsión Social (STPS)",
+                    url = "https://www.gob.mx/stps",
+                    phone = "+52 55 2000 5300",
+                ),
+                destRegulator = Regulator(
+                    name = "US Dept of Labor — Wage & Hour Division",
+                    url = "https://www.dol.gov/agencies/whd",
+                    phone = "+1 866 487 9243",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Centro de los Derechos del Migrante (CDM)",
+                        "Cross-border legal aid + Sue Tu Empleador hotline",
+                        "+1 855 234 9699", "https://cdmigrante.org"),
+                    NgoContact("Polaris Project",
+                        "US national trafficking hotline (multi-language)",
+                        "+1 888 373 7888", "https://polarisproject.org"),
+                    NgoContact("Farmworker Justice",
+                        "H-2A worker advocacy",
+                        "+1 202 293 5420", "https://www.farmworkerjustice.org"),
+                ),
+            ),
+            Corridor(
+                code = "VE-CO",
+                originName = "Venezuela",
+                destName = "Colombia",
+                placementFeeCapUsd = null,
+                placementFeeNote = "No formal placement-fee cap — most " +
+                    "Venezuelan migration to Colombia is irregular " +
+                    "(humanitarian, post-crisis). Watch for informal " +
+                    "smuggling fees + sex-trafficking recruitment.",
+                originRegulator = Regulator(
+                    name = "Servicio Administrativo de Identificación, " +
+                        "Migración y Extranjería (SAIME)",
+                    url = "https://www.saime.gob.ve",
+                    phone = null,
+                ),
+                destRegulator = Regulator(
+                    name = "Migración Colombia (Permiso por Protección Temporal)",
+                    url = "https://www.migracioncolombia.gov.co",
+                    phone = "+57 601 605 5454",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("R4V (Regional Refugee and Migrant Response)",
+                        "UN-coordinated cross-org response",
+                        null, "https://www.r4v.info"),
+                    NgoContact("Fundación Renacer",
+                        "Anti-trafficking + survivor reintegration in Colombia",
+                        "+57 601 549 5424", "https://fundacionrenacer.org"),
+                    NgoContact("La Casa de las Migraciones",
+                        "Caracas-side info + family-reunion support",
+                        null, null),
+                ),
+            ),
+            // ── West Africa → Lebanon (kafala) ────────────────────
+            Corridor(
+                code = "GH-LB",
+                originName = "Ghana",
+                destName = "Lebanon",
+                placementFeeCapUsd = 200.0,
+                placementFeeNote = "Ghanaian Labour Department's MOU with " +
+                    "Lebanese General Security caps domestic-worker " +
+                    "recruitment fees at ~USD 200; in practice many " +
+                    "workers pay 10x via informal sub-agents. " +
+                    "Kafala-system risks: passport withholding, wage " +
+                    "withholding, restriction of movement.",
+                originRegulator = Regulator(
+                    name = "Ghana Labour Department",
+                    url = "https://labour.gov.gh",
+                    phone = "+233 302 666841",
+                ),
+                destRegulator = Regulator(
+                    name = "Lebanese General Security — Foreigners Section",
+                    url = "https://www.general-security.gov.lb",
+                    phone = "+961 1 425000",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Anti-Racism Movement (ARM Beirut)",
+                        "Migrant Domestic Workers Center + crisis hotline",
+                        "+961 70 050 902", "https://www.armlebanon.org"),
+                    NgoContact("KAFA (Enough Violence and Exploitation)",
+                        "Hotline + shelter + legal services in Lebanon",
+                        "+961 3 018 019", "https://www.kafa.org.lb"),
+                    NgoContact("Domestic Workers' Union — Ghana",
+                        "Pre-departure support + family liaison",
+                        null, null),
+                ),
+            ),
+            Corridor(
+                code = "NG-LB",
+                originName = "Nigeria",
+                destName = "Lebanon",
+                placementFeeCapUsd = 200.0,
+                placementFeeNote = "Same Lebanon-side framework as GH-LB. " +
+                    "Nigerian National Agency for the Prohibition of " +
+                    "Trafficking in Persons (NAPTIP) tracks high " +
+                    "incidence of recruitment fraud + trafficking in " +
+                    "this corridor — verify recruiter via NAPTIP " +
+                    "before departure.",
+                originRegulator = Regulator(
+                    name = "NAPTIP (National Agency for Prohibition " +
+                        "of Trafficking in Persons)",
+                    url = "https://naptip.gov.ng",
+                    phone = "+234 9 290 4880",
+                ),
+                destRegulator = Regulator(
+                    name = "Lebanese General Security — Foreigners Section",
+                    url = "https://www.general-security.gov.lb",
+                    phone = "+961 1 425000",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Anti-Racism Movement (ARM Beirut)",
+                        "Migrant Domestic Workers Center + hotline",
+                        "+961 70 050 902", "https://www.armlebanon.org"),
+                    NgoContact("Idia Renaissance (Edo State)",
+                        "Returnee reintegration + anti-trafficking education",
+                        null, null),
+                    NgoContact("Devatop Centre for Africa Development",
+                        "Pan-African anti-trafficking",
+                        null, "https://devatop.org"),
+                ),
+            ),
+            // ── Syria → Europe (post-2011 refugee migration) ──────
+            Corridor(
+                code = "SY-DE",
+                originName = "Syria",
+                destName = "Germany",
+                placementFeeCapUsd = null,
+                placementFeeNote = "Mostly humanitarian/refugee migration, " +
+                    "not labour-recruitment. Watch for: smuggler fees " +
+                    "(€2-10k typical), false-promise asylum brokers, " +
+                    "post-arrival employment fraud preying on refugees " +
+                    "without German-language access.",
+                originRegulator = Regulator(
+                    name = "(no functional Syrian-side regulator post-2011)",
+                    url = "https://www.unhcr.org/syria-emergency.html",
+                    phone = null,
+                ),
+                destRegulator = Regulator(
+                    name = "Bundesamt für Migration und Flüchtlinge (BAMF)",
+                    url = "https://www.bamf.de",
+                    phone = "+49 911 943 6390",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Pro Asyl",
+                        "Asylum + refugee rights advocacy in Germany",
+                        "+49 69 24 23 14 0", "https://www.proasyl.de"),
+                    NgoContact("Caritas Migration und Integration",
+                        "Counselling + integration support",
+                        null, "https://www.caritas.de/migration"),
+                    NgoContact("KOK (German NGO Network Against Trafficking)",
+                        "Trafficking-victim support + counselling",
+                        "+49 30 263 911 76", "https://www.kok-gegen-menschenhandel.de"),
+                ),
+            ),
+            // ── Ukraine → Poland (post-2022) ──────────────────────
+            Corridor(
+                code = "UA-PL",
+                originName = "Ukraine",
+                destName = "Poland",
+                placementFeeCapUsd = 0.0,
+                placementFeeNote = "Polish temporary-protection scheme " +
+                    "for Ukrainians is fee-free + work-authorized " +
+                    "by default. Recruitment fraud risk is high in " +
+                    "informal labour markets (construction, " +
+                    "agriculture, care work) — fees charged by " +
+                    "intermediaries are recoverable.",
+                originRegulator = Regulator(
+                    name = "Ukrainian State Employment Service",
+                    url = "https://www.dcz.gov.ua",
+                    phone = "+380 800 503 753",
+                ),
+                destRegulator = Regulator(
+                    name = "Polish State Labour Inspectorate (PIP)",
+                    url = "https://www.pip.gov.pl",
+                    phone = "+48 22 391 8240",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("La Strada Poland",
+                        "Trafficking + exploitation hotline",
+                        "+48 22 628 99 99", "https://www.strada.org.pl"),
+                    NgoContact("Helsinki Foundation for Human Rights",
+                        "Legal aid for migrants + refugees in Poland",
+                        "+48 22 828 10 08", "https://www.hfhr.pl"),
+                    NgoContact("Right to Protection (Ukraine-side)",
+                        "Pre-departure + cross-border legal aid",
+                        null, "https://r2p.org.ua"),
+                ),
+            ),
         )
 
         fun byCode(code: String?): Corridor? =

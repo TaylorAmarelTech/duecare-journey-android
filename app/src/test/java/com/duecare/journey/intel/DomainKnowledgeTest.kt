@@ -127,4 +127,65 @@ class DomainKnowledgeTest {
         assertNotNull(phHk)
         assertEquals(0.0, phHk!!.placementFeeCapUsd!!, 0.001)
     }
+
+    @Test
+    fun all_twelve_corridors_present() {
+        val codes = CorridorKnowledge.ALL.map { it.code }.toSet()
+        val expected = setOf(
+            // Asia → Gulf / HK / SG (the original 6)
+            "PH-HK", "ID-HK", "PH-SA", "NP-SA", "BD-SA", "ID-SG",
+            // Latin America
+            "MX-US", "VE-CO",
+            // West Africa → Lebanon (kafala)
+            "GH-LB", "NG-LB",
+            // Refugee corridors
+            "SY-DE", "UA-PL",
+        )
+        assertEquals(expected, codes)
+    }
+
+    @Test
+    fun mexico_us_h2_corridor_is_zero_fee() {
+        val mxUs = CorridorKnowledge.byCode("MX-US")
+        assertNotNull(mxUs)
+        assertEquals(0.0, mxUs!!.placementFeeCapUsd!!, 0.001)
+        // Statute citation should reference H-2 / DOL
+        assertTrue(
+            "PH note should mention H-2 visa programs",
+            mxUs.placementFeeNote.contains("H-2", ignoreCase = true) ||
+                mxUs.placementFeeNote.contains("DOL", ignoreCase = true),
+        )
+    }
+
+    @Test
+    fun ukraine_poland_temp_protection_is_zero_fee() {
+        val uaPl = CorridorKnowledge.byCode("UA-PL")
+        assertNotNull(uaPl)
+        assertEquals(0.0, uaPl!!.placementFeeCapUsd!!, 0.001)
+    }
+
+    @Test
+    fun refugee_corridors_have_destination_regulator_even_if_origin_is_null() {
+        // Syria post-2011: no functional origin regulator
+        val syDe = CorridorKnowledge.byCode("SY-DE")
+        assertNotNull(syDe)
+        assertNotNull("Even refugee corridors must name a destination regulator",
+            syDe!!.destRegulator)
+        assertNotNull("BAMF should be the German destination regulator",
+            syDe.destRegulator.name.contains("BAMF") ||
+                syDe.destRegulator.name.contains("Migration"))
+    }
+
+    @Test
+    fun new_corridors_each_have_at_least_two_ngo_contacts() {
+        val newCorridors = listOf("MX-US", "VE-CO", "GH-LB", "NG-LB", "SY-DE", "UA-PL")
+        newCorridors.forEach { code ->
+            val c = CorridorKnowledge.byCode(code)
+            assertNotNull("Missing corridor: $code", c)
+            assertTrue(
+                "Corridor $code should have ≥ 2 NGO contacts",
+                c!!.ngoContacts.size >= 2,
+            )
+        }
+    }
 }
