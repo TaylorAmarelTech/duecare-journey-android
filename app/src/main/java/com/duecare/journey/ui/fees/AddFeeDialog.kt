@@ -247,7 +247,7 @@ private fun <T> EnumDropdown(
                 .menuAnchor()
                 .fillMaxWidth(),
         )
-        androidx.compose.material3.ExposedDropdownMenu(
+        androidx.compose.material3.DropdownMenu(
             expanded = expanded,
             onDismissRequest = { onExpand(false) },
         ) {
