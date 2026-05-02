@@ -29,6 +29,7 @@ import javax.inject.Inject
 class JournalViewModel @Inject constructor(
     private val journal: JournalRepository,
     private val onboarding: OnboardingPrefs,
+    private val attachments: com.duecare.journey.journal.AttachmentStorage,
 ) : ViewModel() {
 
     val state: StateFlow<JournalUiState> = combine(
@@ -73,9 +74,20 @@ class JournalViewModel @Inject constructor(
         kind: EntryKind,
         title: String,
         body: String,
+        attachmentUri: android.net.Uri? = null,
+        contentResolver: android.content.ContentResolver? = null,
     ) {
         viewModelScope.launch {
-            journal.add(stage = stage, kind = kind, title = title, body = body)
+            val attachmentPath = if (attachmentUri != null && contentResolver != null) {
+                attachments.copyIn(attachmentUri, contentResolver)
+            } else null
+            journal.add(
+                stage = stage,
+                kind = kind,
+                title = title,
+                body = body,
+                attachmentPath = attachmentPath,
+            )
         }
     }
 

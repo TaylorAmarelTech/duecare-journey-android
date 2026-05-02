@@ -74,6 +74,9 @@ object AppModule {
         db.legalAssessmentDao()
     @Provides fun provideRefundClaimDao(db: JournalDatabase): RefundClaimDao =
         db.refundClaimDao()
+    // FeePaymentRepository, RefundClaimRepository, JournalRepository
+    // are @Singleton + @Inject constructor — Hilt provides them
+    // automatically; no @Provides needed.
 }
 
 /**

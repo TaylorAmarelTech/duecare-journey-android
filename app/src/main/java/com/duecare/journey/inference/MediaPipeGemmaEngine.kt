@@ -79,10 +79,11 @@ class MediaPipeGemmaEngine @Inject constructor(
         ensureLoaded()
         val engine = llm!!
         // MediaPipe v0.10.x exposes generateResponse (one-shot) and
-        // generateResponseAsync (streaming via callback). For the
-        // v0.3 release we use one-shot + emit in chunks for perceived
-        // streaming. v0.4 wires the async streaming callback to
-        // emit per-token.
+        // generateResponseAsync (streaming via callback). v0.3-v0.6
+        // use one-shot + emit in 16-char chunks for perceived
+        // streaming. Real per-token streaming via the async callback
+        // is a v0.7+ enhancement — the user-visible difference is
+        // smoother typing animation, not throughput.
         val response = engine.generateResponse(prompt) ?: ""
         // Emit in ~16-char chunks to give the UI a "typing" feel
         for (chunk in response.chunked(16)) {

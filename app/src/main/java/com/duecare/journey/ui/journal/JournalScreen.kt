@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
@@ -169,12 +170,17 @@ fun JournalScreen(
             },
         )
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
     if (showAddDialog) {
         AddEntryDialog(
             currentStage = state.stage,
             onDismiss = { showAddDialog = false },
-            onSave = { stage, kind, title, body ->
-                vm.addEntry(stage, kind, title, body)
+            onSave = { stage, kind, title, body, attachmentUri ->
+                vm.addEntry(
+                    stage = stage, kind = kind, title = title, body = body,
+                    attachmentUri = attachmentUri,
+                    contentResolver = if (attachmentUri != null) context.contentResolver else null,
+                )
                 showAddDialog = false
             },
         )
@@ -396,17 +402,23 @@ private fun EntryDetailDialog(
 private fun AddEntryDialog(
     currentStage: JourneyStage,
     onDismiss: () -> Unit,
-    onSave: (JourneyStage, EntryKind, String, String) -> Unit,
+    onSave: (JourneyStage, EntryKind, String, String, android.net.Uri?) -> Unit,
 ) {
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(EntryKind.NOTE) }
+    var attachmentUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val attachmentPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri: android.net.Uri? ->
+        if (uri != null) attachmentUri = uri
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             Button(
-                onClick = { onSave(currentStage, kind, title, body) },
+                onClick = { onSave(currentStage, kind, title, body, attachmentUri) },
                 enabled = title.isNotBlank(),
             ) { Text("Save") }
         },
@@ -436,6 +448,22 @@ private fun AddEntryDialog(
                 Text("Type", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(4.dp))
                 EntryKindChips(kind, onPick = { kind = it })
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = { attachmentPicker.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        Icons.Outlined.AddPhotoAlternate,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (attachmentUri == null) "Attach photo (optional)"
+                        else "Photo attached ✓ (tap to change)",
+                    )
+                }
             }
         },
     )

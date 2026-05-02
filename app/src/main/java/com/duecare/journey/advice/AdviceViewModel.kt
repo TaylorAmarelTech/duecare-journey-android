@@ -92,4 +92,14 @@ class AdviceViewModel @Inject constructor(
             timestampMillis = System.currentTimeMillis(),
         )
     }
+
+    /** v0.7: explicit clear, surfaced via Settings → Clear chat history.
+     *  Chat history is in-memory only (StateFlow inside the ViewModel),
+     *  so this resets it for the lifetime of the process. A panic
+     *  wipe also clears the journal, model, onboarding, and cloud
+     *  config — this affordance is for "I asked something I'd rather
+     *  someone glancing at my screen not see in scrollback." */
+    fun clearMessages() {
+        _messages.value = emptyList()
+    }
 }

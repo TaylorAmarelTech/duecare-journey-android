@@ -17,10 +17,12 @@ private val Context.cloudPrefs by preferencesDataStore("duecare_cloud_model")
  * v0.6: persistent cloud-model configuration.
  *
  * Lets the worker (or NGO sysadmin staging the device) point the chat
- * surface at a remote Gemma 4 endpoint when the on-device model has
- * not been downloaded yet — the most common reason being that the
- * litert-community URL we hard-coded in v0.5 returns 404 because HF
- * renamed the file.
+ * surface at a remote Gemma 4 endpoint when the on-device model isn't
+ * downloaded yet. v0.5 shipped a single hard-coded litert-community
+ * URL which started returning 404 in the wild (HF renamed the file);
+ * v0.6 added this cloud-routing path so the chat surface always has
+ * something working while v0.6's six-variant + multi-mirror download
+ * path is being tried.
  *
  * Three supported shapes:
  *

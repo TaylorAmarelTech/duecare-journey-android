@@ -5,7 +5,7 @@
     <!-- Tabs -->
     <string name="tab_journal">Journal</string>
     <string name="tab_advice">Advice</string>
-    <string name="tab_export">Complaint</string>
+    <string name="tab_reports">Reports</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Journal -->
@@ -16,17 +16,20 @@
     <string name="journal_stage_in_transit">In transit</string>
     <string name="journal_stage_arrived">Arrived</string>
     <string name="journal_stage_employed">Employed</string>
+    <string name="journal_stage_between_employers">Between employers (in country)</string>
     <string name="journal_stage_exit">Exit</string>
 
     <!-- Advice -->
     <string name="advice_title">Ask a legal question</string>
     <string name="advice_hint">Type a question. Gemma 4 reads your journal too.</string>
     <string name="advice_send">Send</string>
+    <string name="advice_clear">Clear chat history</string>
 
-    <!-- Export -->
-    <string name="export_title">Generate complaint packet</string>
-    <string name="export_button">Build PDF</string>
-    <string name="export_hint">We never auto-send. You choose if and where.</string>
+    <!-- Reports -->
+    <string name="reports_title">Case overview</string>
+    <string name="reports_generate">Generate intake document</string>
+    <string name="reports_share">Share with NGO</string>
+    <string name="reports_hint">Generated locally. Never auto-sent. You choose if and where.</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -35,5 +38,5 @@
     <string name="settings_language">Language</string>
 
     <!-- Privacy banner shown on first launch -->
-    <string name="privacy_first_launch">All inference runs on your phone. No data leaves your device unless you explicitly export a complaint packet and choose where to send it.</string>
+    <string name="privacy_first_launch">All inference runs on your phone by default. No data leaves your device unless you explicitly export an intake document and choose where to send it, or you opt in to cloud-model routing in Settings.</string>
 </resources>

@@ -17,8 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AssignmentLate
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.PriorityHigh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
@@ -48,6 +50,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.duecare.journey.intel.DomainKnowledge
 import com.duecare.journey.intel.DomainKnowledge.IloForcedLabourIndicators
 import com.duecare.journey.intel.RiskAnalyzer
+import com.duecare.journey.journal.JourneyStage
+import com.duecare.journey.journal.RefundClaim
+import com.duecare.journey.journal.RefundStatus
+import com.duecare.journey.ui.fees.AddFeeDialog
 
 /**
  * Reports tab — surfaces structured analysis of the worker's journal:
@@ -66,6 +72,8 @@ fun ReportsScreen(
     val s by vm.state.collectAsState()
     val report by vm.generatedReport.collectAsState()
     val context = LocalContext.current
+    var showAddFee by remember { mutableStateOf(false) }
+    var openClaimSnackbar by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier
@@ -82,9 +90,43 @@ fun ReportsScreen(
                 RiskCard(r)
             }
         }
+        item { SectionHeader("Fees paid (${s.feeReport.lines.size})") }
+        item {
+            AddFeeButtonCard(onTap = { showAddFee = true })
+        }
         if (s.feeReport.lines.isNotEmpty()) {
-            item { SectionHeader("Fees paid (${s.feeReport.lines.size})") }
-            item { FeeReportCard(s) }
+            item {
+                FeeReportCard(
+                    s = s,
+                    onStartRefund = { paymentId ->
+                        vm.startRefundClaim(paymentId) { id ->
+                            openClaimSnackbar = id?.let { "Refund-claim draft created" }
+                                ?: "No payment found for that line"
+                        }
+                    },
+                )
+            }
+        }
+        if (s.refundClaims.isNotEmpty()) {
+            item { SectionHeader("Refund claims (${s.refundClaims.size})") }
+            items(s.refundClaims, key = { it.id }) { claim ->
+                RefundClaimCard(
+                    claim = claim,
+                    onMarkFiled = { vm.markClaimFiled(claim.id, null) },
+                    onWithdraw = { vm.withdrawClaim(claim.id) },
+                    onShare = {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT,
+                                "Refund claim — ${claim.currency} ${"%.2f".format(claim.amountClaimedMinorUnits / 100.0)}")
+                            putExtra(Intent.EXTRA_TEXT,
+                                claim.coverLetterText + "\n\n---\n" +
+                                    claim.draftDeliveryMessage)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share refund claim"))
+                    },
+                )
+            }
         }
         item { SectionHeader("Generate NGO intake document") }
         item {
@@ -95,6 +137,28 @@ fun ReportsScreen(
             )
         }
         item { Spacer(Modifier.height(60.dp)) }
+    }
+
+    if (showAddFee) {
+        AddFeeDialog(
+            currentStage = s.stage,
+            onDismiss = { showAddFee = false },
+            onSaved = { result ->
+                showAddFee = false
+                openClaimSnackbar = if (result.assessment != null)
+                    "Fee saved + flagged ILLEGAL — see Refund claims below"
+                else "Fee saved"
+            },
+        )
+    }
+    openClaimSnackbar?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { openClaimSnackbar = null },
+            confirmButton = {
+                TextButton(onClick = { openClaimSnackbar = null }) { Text("OK") }
+            },
+            text = { Text(msg) },
+        )
     }
 
     report?.let { rep ->
@@ -291,7 +355,96 @@ private fun RiskCard(r: RiskAnalyzer.Risk) {
 }
 
 @Composable
-private fun FeeReportCard(s: ReportsUiState) {
+private fun AddFeeButtonCard(onTap: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Record a fee payment",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Captures recipient + amount + purpose. Auto-runs " +
+                        "the legality check against your corridor's fee " +
+                        "cap and pre-stages a refund claim if recoverable.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Button(onClick = onTap) {
+                Icon(Icons.Outlined.Add, contentDescription = null,
+                    modifier = Modifier.size(16.dp))
+                Spacer(Modifier.size(4.dp))
+                Text("Add fee")
+            }
+        }
+    }
+}
+
+@Composable
+private fun RefundClaimCard(
+    claim: RefundClaim,
+    onMarkFiled: () -> Unit,
+    onWithdraw: () -> Unit,
+    onShare: () -> Unit,
+) {
+    val statusColor = when (claim.status) {
+        RefundStatus.DRAFT -> Color(0xFFF59E0B)
+        RefundStatus.FILED, RefundStatus.IN_REVIEW -> Color(0xFF3B82F6)
+        RefundStatus.GRANTED -> Color(0xFF10B981)
+        RefundStatus.PARTIALLY_RECOVERED -> Color(0xFF10B981)
+        RefundStatus.DENIED, RefundStatus.WITHDRAWN -> Color(0xFF6B7280)
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, statusColor.copy(alpha = 0.5f)),
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Gavel, contentDescription = null,
+                    tint = statusColor, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.size(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "${claim.currency} ${"%,.2f".format(claim.amountClaimedMinorUnits / 100.0)}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "Status: ${claim.status.name.lowercase().replace('_', ' ')}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                claim.coverLetterText.take(280) + if (claim.coverLetterText.length > 280) "…" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(onClick = onShare, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.Share, contentDescription = null,
+                        modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(4.dp))
+                    Text("Share")
+                }
+                if (claim.status == RefundStatus.DRAFT) {
+                    OutlinedButton(onClick = onMarkFiled) { Text("Mark filed") }
+                    OutlinedButton(onClick = onWithdraw) { Text("Withdraw") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeeReportCard(s: ReportsUiState, onStartRefund: (String) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
             if (s.feeReport.totalsByCurrency.isNotEmpty()) {
@@ -330,25 +483,39 @@ private fun FeeReportCard(s: ReportsUiState) {
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold)
             s.feeReport.lines.take(20).forEach { line ->
-                Row(Modifier.padding(vertical = 4.dp)) {
-                    if (line.isProbablyIllegal) {
-                        Icon(Icons.Outlined.AssignmentLate, contentDescription = "illegal",
-                            tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.size(6.dp))
+                Column(Modifier.padding(vertical = 4.dp)) {
+                    Row {
+                        if (line.isProbablyIllegal) {
+                            Icon(Icons.Outlined.AssignmentLate, contentDescription = "illegal",
+                                tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.size(6.dp))
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "${line.recipientName} — ${line.purposeLabel}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                "${line.displayAmount}" +
+                                    (line.illegalityReason?.let { "  ·  $it" } ?: ""),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (line.isProbablyIllegal) Color(0xFFEF4444)
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                    Column {
-                        Text(
-                            "${line.recipientName} — ${line.purposeLabel}",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            "${line.displayAmount}" +
-                                (line.illegalityReason?.let { "  ·  $it" } ?: ""),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (line.isProbablyIllegal) Color(0xFFEF4444)
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (line.isProbablyIllegal && line.feePaymentId != null) {
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedButton(
+                            onClick = { onStartRefund(line.feePaymentId!!) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Outlined.Gavel, contentDescription = null,
+                                modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.size(4.dp))
+                            Text("Start refund claim")
+                        }
                     }
                 }
             }

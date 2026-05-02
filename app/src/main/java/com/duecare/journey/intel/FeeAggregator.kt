@@ -42,6 +42,12 @@ class FeeAggregator @Inject constructor() {
         val displayAmount: String,
         val paidAtMillis: Long,
         val sourceEntryId: String?,
+        /** Set when this line came from a structured FeePayment row.
+         *  Null when extracted from journal-entry text. Used by the
+         *  Reports tab's "Start refund claim" affordance — only
+         *  structured rows can be claim sources because we need a
+         *  recorded FeePayment to attach the LegalAssessment to. */
+        val feePaymentId: String?,
         val isProbablyIllegal: Boolean,
         val illegalityReason: String?,
     )
@@ -91,6 +97,7 @@ class FeeAggregator @Inject constructor() {
                 displayAmount = formatAmount(p.amountMinorUnits, p.currency),
                 paidAtMillis = p.paidAtMillis,
                 sourceEntryId = null,
+                feePaymentId = p.id,
                 isProbablyIllegal = illegal,
                 illegalityReason = reason,
             )
@@ -160,6 +167,7 @@ class FeeAggregator @Inject constructor() {
                 displayAmount = formatAmount(amountMinor, curRaw),
                 paidAtMillis = entry.timestampMillis,
                 sourceEntryId = entry.id,
+                feePaymentId = null,
                 isProbablyIllegal = illegal,
                 illegalityReason = reason,
             )

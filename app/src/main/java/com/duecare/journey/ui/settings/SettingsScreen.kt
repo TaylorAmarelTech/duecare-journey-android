@@ -39,6 +39,7 @@ import androidx.lifecycle.viewModelScope
 import com.duecare.journey.inference.CloudModelPrefs
 import com.duecare.journey.inference.MediaPipeGemmaEngine
 import com.duecare.journey.inference.ModelManager
+import com.duecare.journey.journal.AttachmentStorage
 import com.duecare.journey.journal.FeePaymentDao
 import com.duecare.journey.journal.JournalRepository
 import com.duecare.journey.journal.PartyDao
@@ -59,6 +60,7 @@ class SettingsViewModel @Inject constructor(
     private val onboarding: OnboardingPrefs,
     private val partyDao: PartyDao,
     private val feeDao: FeePaymentDao,
+    private val attachments: AttachmentStorage,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(State())
@@ -186,6 +188,7 @@ class SettingsViewModel @Inject constructor(
             mediaPipe.unload()
             modelManager.deleteCachedModel()
             cloudPrefs.clear()
+            attachments.deleteAll()
             _state.value = _state.value.copy(panicWiped = true)
         }
     }

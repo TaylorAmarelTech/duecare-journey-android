@@ -9,9 +9,11 @@
       load-bearing reason; nothing is requested speculatively.
     -->
 
-    <!-- INTERNET: ONLY used for the first-launch model download.
-         A hard-coded host check in LiteRTGemmaEngine rejects all
-         other outbound requests. -->
+    <!-- INTERNET: used for (a) the one-time on-device model download
+         via ModelManager and (b) optional cloud-model routing via
+         OllamaGemmaEngine. The cloud-model URL is set explicitly by
+         the worker in Settings and defaults to none. No background
+         sync, no telemetry, no auto-update. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- CAMERA: Optional. Requested at runtime when the worker taps
@@ -21,7 +23,7 @@
     <uses-feature android:name="android.hardware.camera"
         android:required="false" />
 
-    <!-- POST_NOTIFICATIONS: For complaint-packet "ready to share"
+    <!-- POST_NOTIFICATIONS: For NGO-intake-document "ready to share"
          notifications. Opt-in. Required for API 33+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -67,7 +69,8 @@
             </intent-filter>
         </activity>
 
-        <!-- FileProvider for sharing the generated complaint packet PDF. -->
+        <!-- FileProvider for sharing generated NGO intake documents +
+             attachment exports. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
