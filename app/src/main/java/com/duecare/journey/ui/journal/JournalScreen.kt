@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notes
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.PriorityHigh
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
@@ -69,7 +70,13 @@ fun JournalScreen(
     val state by vm.state.collectAsState()
     var detailEntry by remember { mutableStateOf<JournalEntry?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showIntake by remember { mutableStateOf(false) }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+
+    if (showIntake) {
+        com.duecare.journey.ui.intake.IntakeScreen(onClose = { showIntake = false })
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -83,15 +90,21 @@ fun JournalScreen(
         ) {
             StageHeader(state.stage, state.corridor)
             Spacer(Modifier.height(12.dp))
+            GuidedIntakeCta(
+                hasEntries = state.entries.isNotEmpty(),
+                onTap = { showIntake = true },
+            )
+            Spacer(Modifier.height(12.dp))
             if (state.entries.isEmpty()) {
                 Box(modifier = Modifier
                     .fillMaxSize()
                     .padding(40.dp),
                     contentAlignment = Alignment.Center) {
                     Text(
-                        "No entries yet — tap + to add one. Photos of " +
-                            "receipts, recruiter messages, or anything " +
-                            "you want to remember and later prove.",
+                        "No entries yet — tap the wand above for a guided " +
+                            "intake, or tap + to add a free-form entry. " +
+                            "Photos of receipts, recruiter messages, " +
+                            "anything you want to remember and later prove.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -165,6 +178,42 @@ fun JournalScreen(
                 showAddDialog = false
             },
         )
+    }
+}
+
+@Composable
+private fun GuidedIntakeCta(hasEntries: Boolean, onTap: () -> Unit) {
+    Surface(
+        onClick = onTap,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    if (hasEntries) "Add more via guided intake"
+                    else "Quick guided intake",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Text(
+                    "10 questions · creates entries automatically · skip anything you don't know",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            }
+        }
     }
 }
 

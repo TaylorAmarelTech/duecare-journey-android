@@ -47,24 +47,20 @@ class JournalViewModel @Inject constructor(
         initialValue = JournalUiState(),
     )
 
-    init {
-        // Seed sample data once if the journal is empty AND
-        // onboarding has been completed. New installs after panic-wipe
-        // re-seed; that's intentional (worker can immediately delete
-        // the sample entries).
-        viewModelScope.launch {
-            if (journal.recent(1).isEmpty()) {
-                seedSampleData()
-            }
-        }
-    }
+    /** v0.6 fix: removed automatic sample-data seed on first launch.
+     *  Earlier versions seeded SampleData.sampleJournalEntries when
+     *  the journal was empty — new users saw two red-flagged entries
+     *  they hadn't created, which was misleading. Now the journal
+     *  starts empty; demo data is only loaded when the worker
+     *  explicitly taps "Load demo entries" in Settings. */
 
-    private suspend fun seedSampleData() {
+    /** Public so Settings can call it on demand. */
+    suspend fun loadDemoData() {
         SampleData.sampleJournalEntries.forEach { e ->
             journal.add(
                 stage = e.stage,
                 kind = e.kind,
-                title = e.title,
+                title = "[Example] ${e.title}",
                 body = e.body,
                 parties = e.parties,
                 taggedConcerns = e.taggedConcerns,

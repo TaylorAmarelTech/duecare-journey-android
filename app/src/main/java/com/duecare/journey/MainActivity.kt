@@ -36,6 +36,7 @@ import com.duecare.journey.onboarding.OnboardingPrefs
 import com.duecare.journey.ui.advice.AdviceScreen
 import com.duecare.journey.ui.journal.JournalScreen
 import com.duecare.journey.ui.onboarding.OnboardingScreen
+import com.duecare.journey.ui.reports.ReportsScreen
 import com.duecare.journey.ui.settings.SettingsScreen
 import com.duecare.journey.ui.theme.DuecareJourneyTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -88,7 +89,7 @@ class RootViewModel @Inject constructor(
 private enum class Tab(val label: String) {
     JOURNAL("Journal"),
     CHAT("Advice"),
-    EXPORT("Complaint"),
+    REPORTS("Reports"),
     SETTINGS("Settings"),
 }
 
@@ -118,7 +119,7 @@ private fun MainTabNav() {
                                 imageVector = when (tab) {
                                     Tab.JOURNAL -> Icons.Outlined.Book
                                     Tab.CHAT -> Icons.Outlined.Forum
-                                    Tab.EXPORT -> Icons.Outlined.Description
+                                    Tab.REPORTS -> Icons.Outlined.Description
                                     Tab.SETTINGS -> Icons.Outlined.Settings
                                 },
                                 contentDescription = tab.label,
@@ -133,21 +134,8 @@ private fun MainTabNav() {
         when (current) {
             Tab.JOURNAL -> JournalScreen(padding)
             Tab.CHAT -> AdviceScreen(padding)
-            Tab.EXPORT -> ExportPlaceholder(padding)
+            Tab.REPORTS -> ReportsScreen(padding)
             Tab.SETTINGS -> SettingsScreen(padding)
         }
     }
-}
-
-@Composable
-private fun ExportPlaceholder(padding: PaddingValues) {
-    Text(
-        text = "Complaint packet export — generates a PDF from your journal " +
-            "with the right NGO/regulator address and a draft narrative. " +
-            "Ships in v0.4 (week of 2026-05-19).",
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(24.dp),
-    )
 }

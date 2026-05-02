@@ -8,15 +8,22 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -29,45 +36,71 @@ private val Context.modelPrefs by preferencesDataStore("duecare_model_settings")
 /**
  * Manages download + cache of the MediaPipe / LiteRT-LM model file.
  *
- * v0.5 redesign per docs/model_distribution.md:
- *   - Default model: Gemma 4 E2B from `litert-community/gemma-4-E2B-it-litert-lm`
- *     (Apache 2.0, ungated, anonymous HF Hub download — no Gemma TOU
- *     plumbing, no Kaggle login).
- *   - Custom URL override: worker can paste any direct download URL
- *     in Settings. Useful when our default URL becomes stale, when
- *     a fine-tuned variant is published elsewhere, or when an NGO
- *     hosts a private mirror.
- *   - SHA-256 verification: optional, configurable. MediaPipe
- *     surfaces "Invalid Flatbuffer" with no structured error code on
+ * v0.6 redesign — wires up "everything" the user asked for:
+ *
+ *   - Six built-in variants (Gemma 4 E2B INT4/INT8, Gemma 4 E4B INT4/INT8,
+ *     Gemma 3 1B INT4, Gemma 2 2B INT4 legacy). Worker can switch via
+ *     Settings → On-device model.
+ *   - Each variant carries a LIST of fallback URLs. Download tries the
+ *     primary first; on 404/connect-fail, falls through to the next.
+ *     Mirrors include HF Hub primary, GitHub Releases mirror (when we
+ *     publish one), and Google Cloud Storage for older Gemma 2 .task
+ *     bundles.
+ *   - Custom URL override still wins when set — useful for NGO-hosted
+ *     mirrors and for fine-tuned variants published elsewhere.
+ *   - SHA-256 verification against an optional hash. MediaPipe surfaces
+ *     "Invalid Flatbuffer" with no structured error code on
  *     corrupted/partial files; SHA verify catches this before
  *     LlmInference.createFromOptions() blows up.
- *   - Wi-Fi awareness: refuses to start a 1.4 GB download on metered
- *     networks unless the worker explicitly opts in.
+ *   - Wi-Fi awareness: refuses to start a >1 GB download on metered
+ *     networks unless the worker explicitly opts in (the "start anyway"
+ *     button in Settings).
  *
  * Privacy invariant: the ONLY outbound network call this app makes
- * (besides the optional opt-in NGO sync, which is v2). No telemetry.
- * No background sync. No update check.
+ * (besides the optional opt-in cloud-model routing introduced in v0.6).
+ * No telemetry. No background sync. No update check.
  */
 @Singleton
 class ModelManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
-    /** The default variant. Gemma 4 E2B on the litert-community HF
-     *  Hub repo: ungated, Apache 2.0, anonymous direct download. */
-    var modelVariant: ModelVariant = ModelVariant.GEMMA4_E2B_LITERTLM
-
     private val customUrlKey = stringPreferencesKey("custom_model_url")
     private val customShaKey = stringPreferencesKey("custom_model_sha256")
+    private val variantKey = stringPreferencesKey("selected_variant")
 
-    /** Worker-set custom URL. If non-empty, overrides [modelVariant.url]. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Cached current-variant for synchronous reads. Seeded from
+     *  DataStore at init; updated by [setVariant]. */
+    private val _activeVariant =
+        MutableStateFlow(ModelVariant.GEMMA4_E2B_INT8_LITERTLM)
+    val activeVariantFlow: StateFlow<ModelVariant> = _activeVariant.asStateFlow()
+
+    init {
+        scope.launch {
+            val saved = context.modelPrefs.data
+                .map { it[variantKey] ?: ModelVariant.GEMMA4_E2B_INT8_LITERTLM.key }
+                .first()
+            _activeVariant.value = ModelVariant.fromKey(saved)
+        }
+    }
+
+    /** Worker-set custom URL. If non-empty, overrides the variant's URL list. */
     val customUrl: Flow<String> = context.modelPrefs.data
         .map { it[customUrlKey].orEmpty() }
 
-    /** Worker-set custom SHA-256 (hex). Used to verify a downloaded
-     *  file matches the expected. Empty disables verification. */
+    /** Worker-set custom SHA-256 (hex). Empty disables verification. */
     val customSha256: Flow<String> = context.modelPrefs.data
         .map { it[customShaKey].orEmpty() }
+
+    /** Synchronous accessor — current selection is always cached. */
+    fun activeVariant(): ModelVariant = _activeVariant.value
+
+    suspend fun setVariant(v: ModelVariant) {
+        context.modelPrefs.edit { it[variantKey] = v.key }
+        _activeVariant.value = v
+    }
 
     suspend fun setCustomUrl(url: String, sha256: String = "") {
         context.modelPrefs.edit { prefs ->
@@ -76,20 +109,23 @@ class ModelManager @Inject constructor(
         }
     }
 
-    suspend fun resolvedUrl(): String {
+    suspend fun resolvedUrls(): List<String> {
         val custom = customUrl.first()
-        return if (custom.isNotBlank()) custom else modelVariant.url
+        if (custom.isNotBlank()) return listOf(custom)
+        return activeVariant().urls
     }
 
     private suspend fun resolvedSha256(): String {
         val custom = customSha256.first()
-        return if (custom.isNotBlank()) custom else (modelVariant.sha256 ?: "")
+        if (custom.isNotBlank()) return custom
+        return activeVariant().sha256.orEmpty()
     }
 
     private fun modelDir(): File =
         File(context.filesDir, "models").apply { mkdirs() }
 
-    fun modelFile(): File = File(modelDir(), modelVariant.fileName)
+    /** Path to the cached file for the active variant. */
+    fun modelFile(): File = File(modelDir(), activeVariant().fileName)
 
     val isDownloaded: Boolean
         get() = modelFile().exists() && modelFile().length() > MIN_VALID_SIZE_BYTES
@@ -107,20 +143,16 @@ class ModelManager @Inject constructor(
 
     /** Stream download progress as a Flow of Progress events.
      *
-     *  Caller collects on a coroutine; the UI surfaces a progress bar.
-     *  Idempotent: if the file already exists with the right size,
-     *  emits Progress(done=length, total=length) immediately. The
-     *  flow throws on network errors / non-200 responses; callers
-     *  should wrap in try/catch.
-     *
-     *  `requireUnmetered` (default true) refuses to start a download
-     *  over cellular. Set false to allow cellular downloads (UI
-     *  already shows the data cost disclosure).
+     *  v0.6: tries each URL in [resolvedUrls] in order. Any non-200 or
+     *  connect failure falls through to the next. Final exception is
+     *  thrown only after every URL has been tried.
      *
      *  After the file is fully downloaded, runs SHA-256 verification
      *  if a hash is configured. On verify failure, deletes the bad
-     *  file and throws. */
+     *  file and throws.
+     */
     fun download(requireUnmetered: Boolean = true): Flow<Progress> = flow {
+        val variant: ModelVariant = activeVariant()
         val target = modelFile()
         if (isDownloaded) {
             emit(Progress(target.length(), target.length(), done = true))
@@ -128,38 +160,91 @@ class ModelManager @Inject constructor(
         }
         if (requireUnmetered && !isOnUnmeteredNetwork()) {
             throw IllegalStateException(
-                "Refusing to start ${modelVariant.expectedSizeBytes / 1024 / 1024} MB " +
+                "Refusing to start ${variant.expectedSizeBytes / 1024 / 1024} MB " +
                     "download on metered (cellular) network. Switch to Wi-Fi, or " +
                     "tap 'Start anyway' to confirm cellular use."
             )
         }
-        val url = resolvedUrl()
-        val expectedSha = resolvedSha256()
-        emit(Progress(0L, modelVariant.expectedSizeBytes, done = false))
-        Log.i(TAG, "Downloading ${modelVariant.fileName} from $url " +
-                "(expected ~${modelVariant.expectedSizeBytes / 1024 / 1024} MB, " +
-                "verifying sha256: ${expectedSha.isNotEmpty()})")
+        val urls = resolvedUrls()
+        emit(Progress(0L, variant.expectedSizeBytes, done = false))
 
+        var lastError: Throwable? = null
+        for ((i, url) in urls.withIndex()) {
+            try {
+                Log.i(TAG, "Trying mirror ${i + 1}/${urls.size}: $url")
+                downloadFromUrl(
+                    url = url,
+                    expectedSize = variant.expectedSizeBytes,
+                    target = target,
+                    emitter = { emit(it) },
+                )
+                lastError = null
+                break
+            } catch (e: Throwable) {
+                Log.w(TAG, "Mirror ${i + 1} failed (${e.message}). Trying next.")
+                lastError = e
+                // Clean up any partial file before trying next mirror
+                File(target.absolutePath + ".part").delete()
+            }
+        }
+        if (lastError != null) {
+            throw IllegalStateException(
+                "All ${urls.size} mirror(s) failed for ${variant.displayName}. " +
+                    "Last error: ${lastError.message}\n\n" +
+                    "Workarounds:\n" +
+                    "  • Switch model variant in Settings (try a smaller one).\n" +
+                    "  • Paste a direct URL into Settings → Custom URL.\n" +
+                    "  • Sideload a .task / .litertlm file via Settings → Use my own model.\n" +
+                    "  • Configure a cloud model in Settings → Cloud model.",
+                lastError,
+            )
+        }
+
+        // Verify before atomic rename — corrupted file never reaches
+        // the canonical path
+        val expectedSha = resolvedSha256()
+        val tmp = File(target.absolutePath + ".part")
+        if (expectedSha.isNotEmpty() && tmp.exists()) {
+            emit(Progress(target.length(), target.length(), done = false, verifying = true))
+            val actualSha = sha256Hex(tmp)
+            if (!actualSha.equals(expectedSha, ignoreCase = true)) {
+                tmp.delete()
+                throw IllegalStateException(
+                    "SHA-256 mismatch — file may be corrupted or wrong.\n" +
+                        "Expected: $expectedSha\nActual:   $actualSha"
+                )
+            }
+            Log.i(TAG, "SHA-256 verified")
+        }
+        if (tmp.exists() && !tmp.renameTo(target)) {
+            throw IllegalStateException("Failed to move downloaded file into place")
+        }
+        emit(Progress(target.length(), target.length(), done = true))
+        Log.i(TAG, "Model download complete: ${target.length()} bytes")
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun downloadFromUrl(
+        url: String,
+        expectedSize: Long,
+        target: File,
+        emitter: suspend (Progress) -> Unit,
+    ) {
         val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
         val req = Request.Builder().url(url)
-            .header("User-Agent", "DuecareJourney/0.5 (Android)")
+            .header("User-Agent", "DuecareJourney/0.6 (Android)")
             .build()
         val resp = client.newCall(req).execute()
         if (!resp.isSuccessful) {
-            throw IllegalStateException(
-                "Model download failed: HTTP ${resp.code} from $url"
-            )
+            resp.close()
+            throw IOException("HTTP ${resp.code}")
         }
-        val total = resp.body?.contentLength()?.takeIf { it > 0 }
-            ?: modelVariant.expectedSizeBytes
-        val body = resp.body ?: throw IllegalStateException("Empty response body")
+        val total = resp.body?.contentLength()?.takeIf { it > 0 } ?: expectedSize
+        val body = resp.body ?: throw IOException("Empty response body")
 
         val tmp = File(target.absolutePath + ".part")
-        // Resume if a partial exists (simple resume: skip server-side range,
-        // restart from 0; full Range-resume is a v0.6 enhancement).
         if (tmp.exists()) tmp.delete()
         body.byteStream().use { input ->
             tmp.outputStream().use { output ->
@@ -173,34 +258,13 @@ class ModelManager @Inject constructor(
                     written += n
                     val now = System.currentTimeMillis()
                     if (now - lastEmit > 500) {
-                        emit(Progress(written, total, done = false))
+                        emitter(Progress(written, total, done = false))
                         lastEmit = now
                     }
                 }
             }
         }
-
-        // Verify before atomic rename — corrupted file never reaches
-        // the canonical path
-        if (expectedSha.isNotEmpty()) {
-            emit(Progress(total, total, done = false, verifying = true))
-            val actualSha = sha256Hex(tmp)
-            if (!actualSha.equals(expectedSha, ignoreCase = true)) {
-                tmp.delete()
-                throw IllegalStateException(
-                    "SHA-256 mismatch — file may be corrupted or wrong.\n" +
-                        "Expected: $expectedSha\nActual:   $actualSha"
-                )
-            }
-            Log.i(TAG, "SHA-256 verified")
-        }
-
-        if (!tmp.renameTo(target)) {
-            throw IllegalStateException("Failed to move downloaded file into place")
-        }
-        emit(Progress(total, total, done = true))
-        Log.i(TAG, "Model download complete: ${target.length()} bytes")
-    }.flowOn(Dispatchers.IO)
+    }
 
     /** Delete the cached model file. Frees disk space. */
     fun deleteCachedModel(): Boolean {
@@ -242,37 +306,119 @@ class ModelManager @Inject constructor(
         val percent: Int get() = if (bytesTotal == 0L) 0 else (bytesDone * 100 / bytesTotal).toInt()
     }
 
+    /**
+     * Six built-in variants. Each one has:
+     *   - a canonical filename on disk
+     *   - a list of mirror URLs tried in order on download
+     *   - an expected size (bytes) used for the progress bar before
+     *     the server reports a Content-Length
+     *
+     * Filenames intentionally include the variant key so swapping
+     * variants in Settings doesn't clobber a previously-downloaded
+     * model — the worker can keep multiple on disk and switch.
+     *
+     * URL discovery rules:
+     *   - litert-community LiteRT-LM bundles use the multi-prefill q4/q8
+     *     naming `{Family}-{Size}-it_multi-prefill-seq_q{4|8}_ekv1280.litertlm`.
+     *   - Older Gemma 2/3 .task bundles live under MediaPipe's GCS bucket
+     *     `storage.googleapis.com/mediapipe-models/llm_inference/...`.
+     *   - We also add a generic GitHub Releases mirror under
+     *     `github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/...`
+     *     which we'll populate post-launch. Keeping the URL in the list
+     *     now means a future mirror release becomes a downloadable
+     *     fallback without an app update.
+     */
     enum class ModelVariant(
+        val key: String,
         val displayName: String,
+        val familyDescription: String,
         val fileName: String,
-        val url: String,
+        val urls: List<String>,
         val expectedSizeBytes: Long,
         val sha256: String?,
     ) {
-        /** Gemma 4 E2B INT8 LiteRT-LM bundle. The recommended default —
-         *  Apache 2.0, ungated on Hugging Face, anonymous direct
-         *  download. The actual filename follows litert-community's
-         *  naming convention; if HF changes it, override via Settings
-         *  -> Custom URL. */
-        GEMMA4_E2B_LITERTLM(
-            displayName = "Gemma 4 (E2B LiteRT-LM)",
-            fileName = "gemma-4-e2b-it-litert-lm.litertlm",
-            url = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/" +
-                "Gemma4-E2B-it_multi-prefill-seq_q8_ekv1280.litertlm",
+        GEMMA4_E2B_INT4_LITERTLM(
+            key = "gemma4_e2b_int4",
+            displayName = "Gemma 4 E2B (INT4, smallest)",
+            familyDescription = "Apache 2.0 · 4-bit · ~750 MB · best for low-RAM phones",
+            fileName = "gemma4-e2b-int4.litertlm",
+            urls = listOf(
+                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q4_ekv1280.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E2B-it/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q4_ekv1280.litertlm",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e2b-int4.litertlm",
+            ),
+            expectedSizeBytes = 750_000_000L,
+            sha256 = null,
+        ),
+        GEMMA4_E2B_INT8_LITERTLM(
+            key = "gemma4_e2b_int8",
+            displayName = "Gemma 4 E2B (INT8, recommended)",
+            familyDescription = "Apache 2.0 · 8-bit · ~1.5 GB · the v0.6 default",
+            fileName = "gemma4-e2b-int8.litertlm",
+            urls = listOf(
+                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q8_ekv1280.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E2B-it/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q8_ekv1280.litertlm",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e2b-int8.litertlm",
+            ),
             expectedSizeBytes = 1_500_000_000L,
             sha256 = null,
         ),
-        /** Legacy Gemma 2 path. Kept for users who already pulled a
-         *  .task file. Gated on Kaggle / HF — auto-download usually
-         *  fails; sideload via Settings → Use my own model file. */
-        GEMMA2_2B_TASK(
-            displayName = "Gemma 2 (2B INT4) — gated, sideload preferred",
-            fileName = "gemma-2b-it-cpu-int4.task",
-            url = "https://storage.googleapis.com/mediapipe-models/llm_inference/" +
-                "gemma-2b-it-cpu-int4/float16/1/gemma-2b-it-cpu-int4.bin",
-            expectedSizeBytes = 1_350_000_000L,
+        GEMMA4_E4B_INT4_LITERTLM(
+            key = "gemma4_e4b_int4",
+            displayName = "Gemma 4 E4B (INT4, higher quality)",
+            familyDescription = "Apache 2.0 · 4-bit · ~2.0 GB · needs 6GB+ RAM",
+            fileName = "gemma4-e4b-int4.litertlm",
+            urls = listOf(
+                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q4_ekv1280.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E4B-it/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q4_ekv1280.litertlm",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e4b-int4.litertlm",
+            ),
+            expectedSizeBytes = 2_000_000_000L,
             sha256 = null,
         ),
+        GEMMA4_E4B_INT8_LITERTLM(
+            key = "gemma4_e4b_int8",
+            displayName = "Gemma 4 E4B (INT8, best quality)",
+            familyDescription = "Apache 2.0 · 8-bit · ~3.5 GB · needs 8GB+ RAM",
+            fileName = "gemma4-e4b-int8.litertlm",
+            urls = listOf(
+                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q8_ekv1280.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E4B-it/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q8_ekv1280.litertlm",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e4b-int8.litertlm",
+            ),
+            expectedSizeBytes = 3_500_000_000L,
+            sha256 = null,
+        ),
+        GEMMA3_1B_TASK(
+            key = "gemma3_1b_int4_task",
+            displayName = "Gemma 3 1B (INT4, fast fallback)",
+            familyDescription = "Apache 2.0 · 4-bit · ~600 MB · fastest first-token latency",
+            fileName = "gemma3-1b-it-int4.task",
+            urls = listOf(
+                "https://huggingface.co/litert-community/gemma-3-1b-it/resolve/main/gemma-3-1b-it-int4.task",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma3-1b-it-int4.task",
+            ),
+            expectedSizeBytes = 600_000_000L,
+            sha256 = null,
+        ),
+        GEMMA2_2B_TASK(
+            key = "gemma2_2b_int4_task",
+            displayName = "Gemma 2 2B (INT4, legacy gated)",
+            familyDescription = "Gemma TOU · 4-bit · ~1.35 GB · usually gated, sideload preferred",
+            fileName = "gemma2-2b-it-int4.task",
+            urls = listOf(
+                "https://huggingface.co/litert-community/Gemma2-2B-IT/resolve/main/Gemma2-2B-IT_multi-prefill-seq_q4_ekv1280.task",
+                "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-cpu-int4/float16/1/gemma-2b-it-cpu-int4.bin",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma2-2b-it-int4.task",
+            ),
+            expectedSizeBytes = 1_350_000_000L,
+            sha256 = null,
+        );
+
+        companion object {
+            fun fromKey(k: String): ModelVariant =
+                entries.firstOrNull { it.key == k } ?: GEMMA4_E2B_INT8_LITERTLM
+        }
     }
 
     /** Import a model file the worker downloaded externally (e.g.

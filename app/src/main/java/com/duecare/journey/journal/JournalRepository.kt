@@ -1,5 +1,6 @@
 package com.duecare.journey.journal
 
+import com.duecare.journey.intel.RiskAnalyzer
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import javax.inject.Inject
@@ -8,10 +9,17 @@ import javax.inject.Singleton
 /**
  * Single source of truth for journal reads/writes. The advice layer
  * and the export layer depend on this, NOT on the DAO directly.
+ *
+ * v0.6: every new entry is run through [RiskAnalyzer] at add time so
+ * its `taggedConcerns` and `grepHits` are populated automatically. The
+ * worker never has to remember to tag — if their entry text matches an
+ * ILO indicator pattern, the Reports tab and the chat surface see it
+ * the next time they're rendered.
  */
 @Singleton
 class JournalRepository @Inject constructor(
     private val dao: JournalDao,
+    private val riskAnalyzer: RiskAnalyzer,
 ) {
 
     fun observeAll(): Flow<List<JournalEntry>> = dao.observeAll()
@@ -33,17 +41,27 @@ class JournalRepository @Inject constructor(
         parties: List<String> = emptyList(),
         taggedConcerns: List<String> = emptyList(),
     ) {
+        val draft = JournalEntry(
+            id = UUID.randomUUID().toString(),
+            timestampMillis = System.currentTimeMillis(),
+            stage = stage,
+            kind = kind,
+            title = title,
+            body = body,
+            attachmentPath = attachmentPath,
+            parties = parties,
+            taggedConcerns = taggedConcerns,
+        )
+        // Auto-populate risk tags + grep hits so downstream surfaces
+        // (Reports, Chat) can use them without re-analysis. Worker-set
+        // taggedConcerns are preserved in addition.
+        val risks = riskAnalyzer.analyze(draft)
+        val autoTags = risks.map { it.displayName }.distinct()
+        val grepHits = risks.map { it.ruleId }.distinct()
         dao.upsert(
-            JournalEntry(
-                id = UUID.randomUUID().toString(),
-                timestampMillis = System.currentTimeMillis(),
-                stage = stage,
-                kind = kind,
-                title = title,
-                body = body,
-                attachmentPath = attachmentPath,
-                parties = parties,
-                taggedConcerns = taggedConcerns,
+            draft.copy(
+                taggedConcerns = (taggedConcerns + autoTags).distinct(),
+                grepHits = grepHits,
             )
         )
     }
@@ -55,8 +73,6 @@ class JournalRepository @Inject constructor(
     suspend fun detectedCorridor(): String? {
         val recent = dao.recent(50)
         // crude heuristic: scan parties + body for known corridor markers.
-        // v1 MVP replaces this with a structured `corridor` field
-        // captured at journal creation time.
         val text = recent.joinToString(" ") { "${it.title} ${it.body}" }
             .lowercase()
         return when {
@@ -66,6 +82,7 @@ class JournalRepository @Inject constructor(
             "saudi" in text && "nepal" in text -> "NP-SA"
             "qatar" in text && "nepal" in text -> "NP-QA"
             "saudi" in text && "bangladesh" in text -> "BD-SA"
+            "singapore" in text && "indonesia" in text -> "ID-SG"
             else -> null
         }
     }
@@ -75,7 +92,5 @@ class JournalRepository @Inject constructor(
      *  is gated by a 3-tap-and-hold + biometric confirm in the UI. */
     suspend fun panicWipe() {
         dao.deleteAll()
-        // v1 MVP also: destroy SQLCipher key, overwrite attachment files,
-        // recommend uninstall.
     }
 }
