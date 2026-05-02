@@ -95,6 +95,19 @@ class JournalRepository @Inject constructor(
             // Refugee corridors
             "germany" in text && ("syria" in text || "syrian" in text) -> "SY-DE"
             "poland" in text && ("ukraine" in text || "ukrainian" in text) -> "UA-PL"
+            // Asia → Europe / Asia → Asia
+            "italy" in text && ("philippines" in text || "filipino" in text) -> "PH-IT"
+            "taiwan" in text && ("indonesia" in text || "indonesian" in text) -> "ID-TW"
+            "thailand" in text && ("myanmar" in text || "burmese" in text) -> "MM-TH"
+            "malaysia" in text &&
+                ("cambodia" in text || "cambodian" in text || "khmer" in text) -> "KH-MY"
+            // East Africa → Gulf
+            "lebanon" in text && ("ethiopia" in text || "ethiopian" in text) -> "ET-LB"
+            "saudi" in text && ("kenya" in text || "kenyan" in text) -> "KE-SA"
+            // Refugee + intra-Africa
+            "iran" in text && ("afghan" in text || "afghanistan" in text) -> "AF-IR"
+            ("south africa" in text || "rsa" in text) &&
+                ("zimbabwe" in text || "zimbabwean" in text) -> "ZW-ZA"
             else -> null
         }
     }

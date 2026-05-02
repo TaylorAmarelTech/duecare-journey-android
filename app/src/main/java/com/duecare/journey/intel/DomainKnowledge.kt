@@ -276,6 +276,140 @@ object DomainKnowledge {
                     "verbal, write it down with date and witness if any. " +
                     "Threats are evidence.",
             ),
+            // ── Corridor-specific patterns (v0.9 expansion) ───────
+            Rule(
+                id = "kafala-huroob-absconder",
+                displayName = "Kafala 'huroob' / 'absconder' status",
+                iloIndicator = 5,
+                severity = Severity.CRITICAL,
+                pattern = Regex(
+                    "\\b(huroob|absconder|absconding|tasreeh|exit\\s+visa\\s+denied|" +
+                        "kafeel\\s+refus\\w+|sponsor\\s+refus\\w+\\s+(to\\s+)?(release|let\\s+me\\s+go))\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                statuteCitation = "Saudi MoHR Domestic Worker Regulation Art. 6 " +
+                    "(reformed 2021/2024); Lebanese General Security " +
+                    "kafala framework; ILO C029 Indicator 5",
+                whatItMeans = "'Huroob' (Saudi) / 'absconder' is a " +
+                    "kafala-system status the kafeel/sponsor files when " +
+                    "they want to deny a worker the right to change " +
+                    "employer or leave the country. Recent Saudi reforms " +
+                    "reduce but don't eliminate the abuse vector — and " +
+                    "Lebanon hasn't reformed at all.",
+                nextStep = "Contact the embassy attaché immediately. " +
+                    "Kafala-status disputes are time-sensitive — workers " +
+                    "with huroob status can be detained without notice.",
+            ),
+            Rule(
+                id = "h2a-h2b-fee-violation",
+                displayName = "H-2A / H-2B recruitment-fee violation",
+                iloIndicator = 4,
+                severity = Severity.HIGH,
+                pattern = Regex(
+                    "\\b(h-?2[ab]|temporary\\s+(agricultural|non-agricultural)\\s+work|" +
+                        "petition|labor\\s+certification)\\b.*\\b" +
+                        "(fee|charge|cost|paid|charged|deduct\\w*)\\b|" +
+                        "\\b(transportation\\s+deduct|housing\\s+deduct|" +
+                        "tool\\s+rental|equipment\\s+rental)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                statuteCitation = "US DOL 20 CFR 655.135(j) (H-2A); " +
+                    "20 CFR 655.20(p) (H-2B); INA Sec. 274C",
+                whatItMeans = "US H-2A and H-2B visa programs prohibit " +
+                    "the worker from bearing recruitment costs (visa " +
+                    "fees, transportation, housing). Charges flow to the " +
+                    "US employer or to the recruiter; the worker's pay " +
+                    "must not be reduced below the AEWR (Adverse Effect " +
+                    "Wage Rate) by recruitment-related deductions.",
+                nextStep = "Document the deduction (date, amount, label " +
+                    "the employer used). File with US DOL Wage and Hour " +
+                    "Division: 1-866-487-9243 or wagehour.dol.gov.",
+            ),
+            Rule(
+                id = "fishing-vessel-debt-confinement",
+                displayName = "Fishing-vessel debt + confinement-at-sea pattern",
+                iloIndicator = 4,
+                severity = Severity.CRITICAL,
+                pattern = Regex(
+                    "\\b(fishing\\s+(boat|vessel|trawler)|sea\\s+work|" +
+                        "(at|on)\\s+sea\\s+for\\s+\\d+\\s+(month|year)|" +
+                        "transhipment|reefer|long-?liner|purse\\s+seiner)\\b.*\\b" +
+                        "(debt|loan|advance|deduct|withhold|" +
+                        "(can(no|')t|cannot|not\\s+allowed)\\s+to\\s+(leave|go\\s+ashore))\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                statuteCitation = "ILO C188 (Work in Fishing Convention); " +
+                    "ILO C029 Indicators 4 (debt bondage) + 5 (movement " +
+                    "restriction) + 8 (passport withholding); Thailand " +
+                    "Royal Ordinance Concerning Sea Fishery 2015",
+                whatItMeans = "The combination of recruitment debt + " +
+                    "extended at-sea confinement + transhipment-at-sea " +
+                    "(workers transferred between vessels without " +
+                    "touching shore) is the documented forced-labour " +
+                    "pattern in Thai/Indonesian/Taiwanese fishing fleets. " +
+                    "Workers may go 1-3 years without setting foot on land.",
+                nextStep = "If the worker is currently at sea: report to " +
+                    "Issara Institute hotline (Thailand: +66 2 245 2380) " +
+                    "or Stella Maris (international port chaplaincy network). " +
+                    "If returned: document with ILO ship-by-ship reporting.",
+            ),
+            Rule(
+                id = "smuggler-fee-and-coercion",
+                displayName = "Smuggler-fee + coercion pattern (refugee corridor)",
+                iloIndicator = 9,
+                severity = Severity.HIGH,
+                pattern = Regex(
+                    "\\b(smuggler|trafficker|coyote|guia|" +
+                        "(USD|EUR|\\$|€)\\s*\\d{3,4}\\s+(to\\s+cross|to\\s+take\\s+me|" +
+                        "to\\s+get\\s+(across|to)))\\b|" +
+                        "\\b(crossing\\s+fee|passage\\s+fee)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                statuteCitation = "UN Palermo Protocol Art. 3(a); UN " +
+                    "Smuggling-of-Migrants Protocol Art. 3; ILO C029 " +
+                    "Indicator 9 (deception)",
+                whatItMeans = "Smuggling fees are not themselves illegal " +
+                    "for the migrant — but the deception/coercion pattern " +
+                    "around them (false promises about destination, " +
+                    "extortion of additional fees mid-journey, sale of " +
+                    "the migrant to a third party at destination) is " +
+                    "trafficking under Palermo Art. 3(a).",
+                nextStep = "If en route: the destination country's " +
+                    "anti-trafficking hotline often has multilingual " +
+                    "support and can intervene without exposing the " +
+                    "smuggler relationship to immigration authorities. " +
+                    "If arrived: a refugee-protection NGO can document " +
+                    "the deception pattern + advocate for trafficking-" +
+                    "victim status (which carries different protections " +
+                    "than asylum).",
+            ),
+            Rule(
+                id = "domestic-work-locked-in-residence",
+                displayName = "Domestic worker required to live-in + 24/7 availability",
+                iloIndicator = 5,
+                severity = Severity.HIGH,
+                pattern = Regex(
+                    "\\b(live-?in|sleep\\s+at\\s+(employer|household)|" +
+                        "must\\s+stay\\s+in\\s+(the\\s+)?house|" +
+                        "(no|cannot|can(no|')t)\\s+(go|leave)\\s+(home|out)|" +
+                        "(available|on\\s+call)\\s+(24/7|all\\s+night|whenever))\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                statuteCitation = "ILO C189 Arts. 9 + 10 (Domestic Workers " +
+                    "Convention — entitled to keep travel docs + free to " +
+                    "reach an agreement on whether to reside in the " +
+                    "household); ILO C029 Indicators 5 + 11",
+                whatItMeans = "ILO C189 specifically protects domestic " +
+                    "workers' right to choose whether to live in the " +
+                    "employer's household and to retain their identity " +
+                    "documents. Forced live-in arrangements are a primary " +
+                    "kafala-system + HK FDH abuse pattern.",
+                nextStep = "Document the working hours pattern (when " +
+                    "shifts start/end + when sleep happens + breaks). " +
+                    "ILO C189 + most destination-country labour codes " +
+                    "require either separate accommodation OR genuinely " +
+                    "off-duty hours within the household.",
+            ),
         )
 
         /** Run all rules over [text]. Returns matched rule IDs in
@@ -675,6 +809,278 @@ object DomainKnowledge {
                     NgoContact("KOK (German NGO Network Against Trafficking)",
                         "Trafficking-victim support + counselling",
                         "+49 30 263 911 76", "https://www.kok-gegen-menschenhandel.de"),
+                ),
+            ),
+            // ── Asia → Europe (caregivers + factory) ──────────────
+            Corridor(
+                code = "PH-IT",
+                originName = "Philippines",
+                destName = "Italy",
+                placementFeeCapUsd = 0.0,
+                placementFeeNote = "Italian Decreto Flussi quota for " +
+                    "Filipino caregivers requires zero recruitment " +
+                    "fees per the Italy-Philippines bilateral labour " +
+                    "agreement (2022 update). Italian Ministry of " +
+                    "Labour treats placement-fee charging as illegal " +
+                    "intermediation under D.Lgs. 24/2014.",
+                originRegulator = Regulator(
+                    name = "Department of Migrant Workers (DMW)",
+                    url = "https://dmw.gov.ph",
+                    phone = "+63-2-8721-1144",
+                ),
+                destRegulator = Regulator(
+                    name = "Italian Ministry of Labour and Social Policies",
+                    url = "https://www.lavoro.gov.it",
+                    phone = "+39 06 4683 1",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Caritas Italiana — Migration Office",
+                        "Crisis support + legal aid for foreign workers",
+                        "+39 06 6617 7501", "https://www.caritas.it"),
+                    NgoContact("Filcams CGIL",
+                        "Trade union for domestic + service workers",
+                        null, "https://www.filcams.cgil.it"),
+                    NgoContact("Migrant CARE Italia",
+                        "Filipino-community-led legal + social aid",
+                        null, null),
+                ),
+            ),
+            Corridor(
+                code = "ID-TW",
+                originName = "Indonesia",
+                destName = "Taiwan",
+                placementFeeCapUsd = 1500.0,
+                placementFeeNote = "Indonesian Permenaker 9/2019 caps " +
+                    "placement-related fees at IDR 19M (~USD 1,500) " +
+                    "for Taiwan corridor. Taiwan Direct Hiring Service " +
+                    "Center bypasses brokers entirely — workers should " +
+                    "verify whether their broker fee was avoidable.",
+                originRegulator = Regulator(
+                    name = "BP2MI (Indonesian Migrant Worker Protection Agency)",
+                    url = "https://bp2mi.go.id",
+                    phone = "+62 21 3920 3411",
+                ),
+                destRegulator = Regulator(
+                    name = "Taiwan Ministry of Labour — Direct Hiring Service",
+                    url = "https://dhsc.wda.gov.tw",
+                    phone = "+886 2 8995 6000",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("TIWA (Taiwan International Workers' Association)",
+                        "Multi-corridor migrant worker advocacy in Taiwan",
+                        "+886 2 2595 6858", "https://tiwa.org.tw"),
+                    NgoContact("Hope Workers Center",
+                        "Taoyuan-based legal aid + shelter",
+                        "+886 3 425 5416", null),
+                    NgoContact("Indonesian Migrant Workers Union — Taiwan chapter",
+                        "Peer support + tribunal accompaniment",
+                        null, null),
+                ),
+            ),
+            // ── Mekong region (fishing + agriculture) ─────────────
+            Corridor(
+                code = "MM-TH",
+                originName = "Myanmar",
+                destName = "Thailand",
+                placementFeeCapUsd = 100.0,
+                placementFeeNote = "Thai-Myanmar 2003 MOU caps documented-" +
+                    "worker fees at THB 3,400 (~USD 100). In practice " +
+                    "informal recruitment via brokers (esp. for fishing + " +
+                    "agriculture) routinely charges 10-30x. Forced " +
+                    "labour in Thai fishing fleets is documented under " +
+                    "ILO indicators 4 (debt bondage), 8 (passport " +
+                    "withholding), 10 (abusive working conditions).",
+                originRegulator = Regulator(
+                    name = "Myanmar Ministry of Labour",
+                    url = "https://mol.nugmyanmar.org",
+                    phone = null,
+                ),
+                destRegulator = Regulator(
+                    name = "Thailand Ministry of Labour — Department of Employment",
+                    url = "https://www.doe.go.th",
+                    phone = "+66 2 232 1462",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Migrant Worker Federation (Thailand)",
+                        "Cross-border worker rights",
+                        null, null),
+                    NgoContact("MAP Foundation (Migrant Assistance Program)",
+                        "Chiang Mai-based legal aid + community radio",
+                        "+66 53 811 202", "https://www.mapfoundationcm.org"),
+                    NgoContact("Issara Institute",
+                        "Hotline for migrant workers in supply chains",
+                        "+66 2 245 2380", "https://www.issarainstitute.org"),
+                ),
+            ),
+            Corridor(
+                code = "KH-MY",
+                originName = "Cambodia",
+                destName = "Malaysia",
+                placementFeeCapUsd = 500.0,
+                placementFeeNote = "Cambodian MoL fee cap of approximately " +
+                    "USD 500 for Malaysia-bound workers (palm oil, " +
+                    "manufacturing). Suspension of female domestic " +
+                    "worker deployment to Malaysia (since 2011) means " +
+                    "any female worker in domestic service via this " +
+                    "corridor is irregular — high trafficking risk.",
+                originRegulator = Regulator(
+                    name = "Cambodian Ministry of Labour and Vocational Training",
+                    url = "https://www.mlvt.gov.kh",
+                    phone = "+855 23 884 376",
+                ),
+                destRegulator = Regulator(
+                    name = "Department of Labour Peninsular Malaysia (JTKSM)",
+                    url = "https://jtksm.mohr.gov.my",
+                    phone = "+60 3 8886 5000",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("CARAM Cambodia",
+                        "Pre-departure + returnee support; trafficking " +
+                            "victim assistance",
+                        null, null),
+                    NgoContact("Tenaganita Malaysia",
+                        "Multi-corridor migrant + trafficking advocacy",
+                        "+60 3 7770 3691", "https://tenaganita.net"),
+                    NgoContact("Legal Aid Centre, Malaysian Bar",
+                        "Pro bono legal aid for foreign workers",
+                        "+60 3 2691 3005", "https://www.malaysianbar.org.my"),
+                ),
+            ),
+            // ── East Africa → Gulf (kafala) ───────────────────────
+            Corridor(
+                code = "ET-LB",
+                originName = "Ethiopia",
+                destName = "Lebanon",
+                placementFeeCapUsd = 0.0,
+                placementFeeNote = "Ethiopia banned domestic-worker " +
+                    "deployment to Lebanon 2013-2018 + has placement-" +
+                    "fee restrictions in the 2018-restored framework. " +
+                    "Many workers reach Lebanon irregularly via Sudan/" +
+                    "Yemen routes, then enter the kafala system on " +
+                    "arrival. Highest-incidence trafficking corridor " +
+                    "documented by Anti-Slavery International (2024 report).",
+                originRegulator = Regulator(
+                    name = "Ethiopian Ministry of Labour and Skills",
+                    url = "https://mols.gov.et",
+                    phone = "+251 11 555 0011",
+                ),
+                destRegulator = Regulator(
+                    name = "Lebanese General Security — Foreigners Section",
+                    url = "https://www.general-security.gov.lb",
+                    phone = "+961 1 425000",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Anti-Racism Movement (ARM Beirut)",
+                        "Migrant Domestic Workers Center + crisis hotline",
+                        "+961 70 050 902", "https://www.armlebanon.org"),
+                    NgoContact("KAFA (Enough Violence and Exploitation)",
+                        "Hotline + shelter + legal services in Lebanon",
+                        "+961 3 018 019", "https://www.kafa.org.lb"),
+                    NgoContact("Good Shepherd Sisters — Ethiopia office",
+                        "Returnee reintegration + family liaison",
+                        null, null),
+                ),
+            ),
+            Corridor(
+                code = "KE-SA",
+                originName = "Kenya",
+                destName = "Saudi Arabia",
+                placementFeeCapUsd = 0.0,
+                placementFeeNote = "Kenya National Employment Authority " +
+                    "(NEA) requires zero placement fee for Saudi-bound " +
+                    "domestic workers per the 2017 Kenya-Saudi BLA. " +
+                    "Repeated Kenyan worker deaths in Saudi Arabia in " +
+                    "2022-2024 prompted regulatory review; corridor is " +
+                    "high-risk for kafala-system abuses (passport " +
+                    "withholding, wage theft, physical violence).",
+                originRegulator = Regulator(
+                    name = "Kenya National Employment Authority (NEA)",
+                    url = "https://nea.go.ke",
+                    phone = "+254 20 280 0000",
+                ),
+                destRegulator = Regulator(
+                    name = "Saudi Ministry of Human Resources (Musaned)",
+                    url = "https://musaned.com.sa",
+                    phone = "19911",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("HAART Kenya (Awareness Against Human Trafficking)",
+                        "Hotline + survivor support + legal aid",
+                        "+254 780 005 005", "https://haartkenya.org"),
+                    NgoContact("Kenya Domestic Workers Council",
+                        "Pre-departure + returnee support",
+                        null, null),
+                    NgoContact("Tawasul (Saudi worker hotline)",
+                        "24/7 multi-language complaint line in KSA",
+                        "+966 920003343", "https://musaned.com.sa"),
+                ),
+            ),
+            // ── Refugee corridors ─────────────────────────────────
+            Corridor(
+                code = "AF-IR",
+                originName = "Afghanistan",
+                destName = "Iran",
+                placementFeeCapUsd = null,
+                placementFeeNote = "Mostly humanitarian / refugee " +
+                    "migration post-2021. Watch for: smuggler fees " +
+                    "(typically USD 500-2,000), recruitment into " +
+                    "informal construction (no work permit), forced " +
+                    "recruitment of Afghan men into Iranian-aligned " +
+                    "militias, child-labour exploitation in brick kilns.",
+                originRegulator = Regulator(
+                    name = "(no functional Afghan-side regulator post-2021)",
+                    url = "https://www.unhcr.org/afghanistan",
+                    phone = null,
+                ),
+                destRegulator = Regulator(
+                    name = "Iranian Ministry of Cooperatives, Labour & Social Welfare",
+                    url = "https://www.mcls.gov.ir",
+                    phone = "+98 21 6492",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("UNHCR Iran Operation",
+                        "Refugee protection + legal aid",
+                        null, "https://www.unhcr.org/ir"),
+                    NgoContact("Norwegian Refugee Council Afghanistan",
+                        "Cross-border legal counselling for Afghans",
+                        null, "https://www.nrc.no/countries/asia/afghanistan"),
+                    NgoContact("HAMI Association",
+                        "Tehran-based legal aid for Afghan refugees",
+                        null, null),
+                ),
+            ),
+            // ── Intra-Africa migration ────────────────────────────
+            Corridor(
+                code = "ZW-ZA",
+                originName = "Zimbabwe",
+                destName = "South Africa",
+                placementFeeCapUsd = null,
+                placementFeeNote = "Most Zimbabwe-South Africa migration " +
+                    "is irregular (no formal placement-fee framework). " +
+                    "Watch for: ZEP (Zimbabwean Exemption Permit) " +
+                    "termination effects, informal mining recruitment, " +
+                    "domestic-worker recruitment through informal " +
+                    "intermediaries, xenophobic violence patterns.",
+                originRegulator = Regulator(
+                    name = "Zimbabwe Ministry of Labour and Social Welfare",
+                    url = "https://www.publicservice.gov.zw",
+                    phone = "+263 24 279 0871",
+                ),
+                destRegulator = Regulator(
+                    name = "South African Department of Employment & Labour",
+                    url = "https://www.labour.gov.za",
+                    phone = "+27 12 309 4000",
+                ),
+                ngoContacts = listOf(
+                    NgoContact("Lawyers for Human Rights (LHR) South Africa",
+                        "Refugee + migrant law clinic",
+                        "+27 11 339 1960", "https://www.lhr.org.za"),
+                    NgoContact("Migrant Workers Union of South Africa (MIWUSA)",
+                        "Cross-border worker organizing",
+                        null, null),
+                    NgoContact("Scalabrini Centre Cape Town",
+                        "Legal + social advocacy for migrants",
+                        "+27 21 465 6433", "https://scalabrini.org.za"),
                 ),
             ),
             // ── Ukraine → Poland (post-2022) ──────────────────────

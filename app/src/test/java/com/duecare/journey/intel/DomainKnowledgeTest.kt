@@ -129,7 +129,7 @@ class DomainKnowledgeTest {
     }
 
     @Test
-    fun all_twelve_corridors_present() {
+    fun all_twenty_corridors_present() {
         val codes = CorridorKnowledge.ALL.map { it.code }.toSet()
         val expected = setOf(
             // Asia → Gulf / HK / SG (the original 6)
@@ -140,6 +140,12 @@ class DomainKnowledgeTest {
             "GH-LB", "NG-LB",
             // Refugee corridors
             "SY-DE", "UA-PL",
+            // v0.9 expansion: Asia → Europe / Asia → Asia
+            "PH-IT", "ID-TW", "MM-TH", "KH-MY",
+            // East Africa → Gulf
+            "ET-LB", "KE-SA",
+            // Refugee + intra-Africa
+            "AF-IR", "ZW-ZA",
         )
         assertEquals(expected, codes)
     }
@@ -178,7 +184,13 @@ class DomainKnowledgeTest {
 
     @Test
     fun new_corridors_each_have_at_least_two_ngo_contacts() {
-        val newCorridors = listOf("MX-US", "VE-CO", "GH-LB", "NG-LB", "SY-DE", "UA-PL")
+        val newCorridors = listOf(
+            // v0.8 wave
+            "MX-US", "VE-CO", "GH-LB", "NG-LB", "SY-DE", "UA-PL",
+            // v0.9 wave
+            "PH-IT", "ID-TW", "MM-TH", "KH-MY", "ET-LB", "KE-SA",
+            "AF-IR", "ZW-ZA",
+        )
         newCorridors.forEach { code ->
             val c = CorridorKnowledge.byCode(code)
             assertNotNull("Missing corridor: $code", c)
@@ -187,5 +199,66 @@ class DomainKnowledgeTest {
                 c!!.ngoContacts.size >= 2,
             )
         }
+    }
+
+    @Test
+    fun ph_it_zero_fee_decreto_flussi() {
+        val c = CorridorKnowledge.byCode("PH-IT")
+        assertNotNull(c)
+        assertEquals(0.0, c!!.placementFeeCapUsd!!, 0.001)
+        assertTrue(c.placementFeeNote.contains("Decreto Flussi", ignoreCase = true) ||
+                   c.placementFeeNote.contains("bilateral", ignoreCase = true))
+    }
+
+    @Test
+    fun mm_th_corridor_notes_fishing_industry_risk() {
+        val c = CorridorKnowledge.byCode("MM-TH")
+        assertNotNull(c)
+        assertTrue(c!!.placementFeeNote.contains("fishing", ignoreCase = true))
+    }
+
+    @Test
+    fun et_lb_corridor_kafala_pattern() {
+        val c = CorridorKnowledge.byCode("ET-LB")
+        assertNotNull(c)
+        assertTrue(c!!.placementFeeNote.contains("kafala", ignoreCase = true))
+    }
+
+    // ─── New GREP rules (corridor-specific patterns) ──────────
+
+    @Test
+    fun grep_rule_kafala_huroob_fires_on_canonical_text() {
+        val matches = GrepRules.match("My kafeel filed huroob against me last week")
+        assertTrue(matches.any { it.id == "kafala-huroob-absconder" })
+    }
+
+    @Test
+    fun grep_rule_h2_visa_fee_violation_fires() {
+        val text = "On my H-2A visa, the contractor charged me \$500 in transportation deductions"
+        val matches = GrepRules.match(text)
+        assertTrue(matches.any { it.id == "h2a-h2b-fee-violation" })
+    }
+
+    @Test
+    fun grep_rule_fishing_vessel_pattern_fires() {
+        val text = "I was on a fishing vessel for 18 months. The captain held my " +
+                   "passport and deducted my recruitment loan from my pay."
+        val matches = GrepRules.match(text)
+        assertTrue("Expected fishing-vessel-debt-confinement to fire on $text",
+            matches.any { it.id == "fishing-vessel-debt-confinement" })
+    }
+
+    @Test
+    fun grep_rule_smuggler_fee_pattern_fires() {
+        val text = "We paid the smuggler USD 1500 to take us across the border"
+        val matches = GrepRules.match(text)
+        assertTrue(matches.any { it.id == "smuggler-fee-and-coercion" })
+    }
+
+    @Test
+    fun grep_rule_domestic_live_in_pattern_fires() {
+        val text = "My employer requires me to live-in and be available 24/7 with no rest day"
+        val matches = GrepRules.match(text)
+        assertTrue(matches.any { it.id == "domestic-work-locked-in-residence" })
     }
 }
