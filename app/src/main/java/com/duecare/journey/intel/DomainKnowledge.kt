@@ -57,9 +57,13 @@ object DomainKnowledge {
                 severity = Severity.CRITICAL,
                 pattern = Regex(
                     "(passport|visa|id|identification|document|paper)s?\\s+" +
-                        "(was\\s+)?(taken|kept|held|withheld|confiscated|seized|" +
+                        "((will\\s+be|is|was|were|has\\s+been|have\\s+been)\\s+)?" +
+                        "(taken|kept|held|withheld|confiscated|seized|" +
                         "for\\s+safekeeping|in\\s+the\\s+safe|with\\s+(?:the|my)\\s+" +
-                        "(?:employer|recruiter|agency))",
+                        "(?:employer|recruiter|agency|sponsor))|" +
+                        "(taken|kept|keeping|held|withheld|confiscated|seized)\\s+" +
+                        "(?:my\\s+|the\\s+)?(passport|visa|id|identification|" +
+                        "document|paper)s?",
                     RegexOption.IGNORE_CASE,
                 ),
                 statuteCitation = "ILO C029 Indicator 8 · UN Palermo Protocol Art. 3(a)",
@@ -201,7 +205,9 @@ object DomainKnowledge {
                 iloIndicator = 7,
                 severity = Severity.HIGH,
                 pattern = Regex(
-                    "(not\\s+paid|unpaid|haven'?t\\s+been\\s+paid|hasn'?t\\s+paid|" +
+                    "(not\\s+paid|not\\s+been\\s+paid|unpaid|" +
+                        "have\\s+not\\s+been\\s+paid|" +
+                        "haven'?t\\s+been\\s+paid|hasn'?t\\s+paid|" +
                         "didn'?t\\s+pay|no\\s+(?:salary|wage|pay|payment))" +
                         "(\\s+for\\s+\\d+\\s+(?:day|week|month))?",
                     RegexOption.IGNORE_CASE,

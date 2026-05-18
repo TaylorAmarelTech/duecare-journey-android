@@ -26,7 +26,7 @@ class StructuredFeeAssessorTest {
         currency = currency,
         paidToId = "p1",
         purposeLabel = purposeLabel,
-        purposeAsClaimedByPayer = "training",
+        purposeAsClaimedByPayer = purposeLabel,
         paymentMethod = PaymentMethod.BANK_TRANSFER,
         stage = JourneyStage.PRE_DEPARTURE,
     )
