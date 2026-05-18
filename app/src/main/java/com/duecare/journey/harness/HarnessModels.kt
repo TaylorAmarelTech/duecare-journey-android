@@ -1,15 +1,17 @@
 package com.duecare.journey.harness
 
 /**
- * Data classes for the harness layers ported from the Python
- * `duecare.chat.harness` module. The Android app bundles the same
- * 37 GREP rules + 26 RAG docs + 4 tools so the on-device chat surface
- * has the same safety floor as the desktop / Kaggle / HF Spaces UIs.
+ * Data classes for the Android harness layers adapted from the Python
+ * Duecare harness.
  *
- * STATUS (skeleton): the actual rule + doc bodies live in the Python
- * package today and will be ported to Kotlin via a code-generation
- * step in v1 MVP (so a Python-side rule edit stays the source of
- * truth and propagates to Android automatically).
+ * Android v0.9 ships two explicit on-device surfaces:
+ * - active advice prompt harness: 4 GREP rules, 4 RAG docs, 2 lookup functions
+ * - deterministic domain intelligence: 16 report risk rules, 11 ILO indicators,
+ *   20 corridor profiles
+ *
+ * The full desktop/web harness remains in the parent repository. Android v1
+ * should expand/sync this subset through code generation so parent-side rule
+ * edits stay the source of truth.
  */
 
 data class GrepHit(

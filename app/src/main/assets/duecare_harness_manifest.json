@@ -1,0 +1,108 @@
+{
+  "schema_version": "duecare.android.harness_manifest.v1",
+  "app": {
+    "name": "Duecare Journey",
+    "application_id": "com.duecare.journey",
+    "version_code": 10,
+    "version_name": "0.9.0-twenty-corridors-new-rules"
+  },
+  "repositories": {
+    "android": "https://github.com/TaylorAmarelTech/duecare-journey-android",
+    "parent_harness": "https://github.com/TaylorAmarelTech/gemma4_comp"
+  },
+  "purpose": "Bundled APK manifest for reviewer and CI verification of the on-device safety harness contents.",
+  "model_runtime": {
+    "primary": "Gemma 4 E2B via MediaPipe / LiteRT",
+    "model_distribution": "Downloaded or imported by the worker after install; model weights are not bundled in the APK.",
+    "fallback": "Stub legal-citation response engine for UI testing until a local model or explicit cloud endpoint is configured.",
+    "cloud_model": "Optional and user-configured only."
+  },
+  "active_advice_prompt_harness": {
+    "description": "The journey-aware chat prompt assembler runs these deterministic layers before the model response.",
+    "grep_rule_count": 4,
+    "grep_rule_ids": [
+      "usury_pattern_high_apr",
+      "debt_bondage_loan_salary_deduction",
+      "passport_safekeeping_consent_form",
+      "huroob_threat"
+    ],
+    "rag_doc_count": 4,
+    "rag_doc_ids": [
+      "ilo_c181_art7",
+      "ilo_c189_art9",
+      "palermo_protocol_3b",
+      "poea_mc_14_2017"
+    ],
+    "lookup_function_count": 2,
+    "lookup_functions": [
+      "lookup_corridor_fee_cap",
+      "lookup_ngo_intake"
+    ],
+    "corridor_fee_cap_entries": [
+      "PH-HK",
+      "PH-SA",
+      "ID-HK",
+      "NP-QA",
+      "BD-SA"
+    ],
+    "ngo_intake_entries": [
+      "PH-HK",
+      "ID-HK",
+      "NP-QA",
+      "BD-SA"
+    ]
+  },
+  "deterministic_domain_intelligence": {
+    "description": "Native Kotlin intelligence used by journal analysis, reports, fee assessment, and complaint-packet preparation.",
+    "risk_rule_count": 16,
+    "ilo_indicator_count": 11,
+    "corridor_profile_count": 20,
+    "corridor_codes": [
+      "PH-HK",
+      "ID-HK",
+      "PH-SA",
+      "NP-SA",
+      "BD-SA",
+      "ID-SG",
+      "MX-US",
+      "VE-CO",
+      "GH-LB",
+      "NG-LB",
+      "SY-DE",
+      "UA-PL",
+      "PH-IT",
+      "ID-TW",
+      "MM-TH",
+      "KH-MY",
+      "ET-LB",
+      "KE-SA",
+      "AF-IR",
+      "ZW-ZA"
+    ]
+  },
+  "privacy_boundary": {
+    "no_telemetry": true,
+    "no_account": true,
+    "no_cloud_sync_by_default": true,
+    "journal_encrypted_at_rest": true,
+    "raw_worker_case_files_leave_device_by_default": false,
+    "complaint_packets_auto_sent": false
+  },
+  "not_bundled": [
+    "Parent desktop/web full rulegrade rubrics",
+    "Parent prompt corpus",
+    "Parent full RAG graph",
+    "Raw case files or survivor testimony",
+    "Gemma model weights"
+  ],
+  "ci_verification": {
+    "workflow": ".github/workflows/build-apk.yml",
+    "required_apk_path": "assets/duecare_harness_manifest.json",
+    "checks": [
+      "debug unit tests",
+      "debug APK assemble",
+      "APK contains harness manifest asset",
+      "manifest counts match expected v0.9 bundle"
+    ]
+  }
+}

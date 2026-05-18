@@ -12,9 +12,9 @@ import net.sqlcipher.database.SupportFactory
  * SQLCipher-encrypted Room database for the journal.
  *
  * v2 schema: adds Party / FeePayment / LegalAssessment / RefundClaim
- * to the original JournalEntry. Version bumped from 1 to 2 — the
- * v0.1 skeleton uses fallbackToDestructiveMigration so existing
- * skeleton installs simply lose their (currently empty) journal.
+ * to the original JournalEntry. Version bumped from 1 to 2; early
+ * prototype installs use fallbackToDestructiveMigration so existing
+ * prototype journals are cleared during schema changes.
  * v1 MVP will replace the destructive-migration call with a real
  * Migration(1, 2) that preserves data — but at v0.2 there's no real
  * data to preserve.

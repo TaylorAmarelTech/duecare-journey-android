@@ -54,15 +54,21 @@ jobs:
           gradle-version: "8.5"
           cache-read-only: false
 
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x gradlew
+
       - name: Show environment
         run: |
           java -version
-          gradle --version
+          ./gradlew --version
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+
       - name: Assemble debug APK
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
       - name: Locate APK
         id: locate
@@ -73,13 +79,56 @@ jobs:
           echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
           ls -la "$APK"
           # Print SHA256 so the user can verify integrity after download
-          sha256sum "$APK"
+          sha256sum "$APK" | tee app/build/outputs/apk/debug/duecare-journey-debug.sha256
+
+      - name: Verify APK contains harness manifest
+        env:
+          APK_PATH: ${{ steps.locate.outputs.apk_path }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import zipfile
+
+          apk = os.environ["APK_PATH"]
+          manifest_path = "assets/duecare_harness_manifest.json"
+
+          with zipfile.ZipFile(apk) as zf:
+              names = set(zf.namelist())
+              if manifest_path not in names:
+                  raise SystemExit(f"missing {manifest_path} in {apk}")
+              data = json.loads(zf.read(manifest_path).decode("utf-8"))
+
+          checks = [
+              ("schema", data.get("schema_version") == "duecare.android.harness_manifest.v1"),
+              ("version_code", data["app"]["version_code"] == 10),
+              ("prompt_grep", data["active_advice_prompt_harness"]["grep_rule_count"] == 4),
+              ("prompt_rag", data["active_advice_prompt_harness"]["rag_doc_count"] == 4),
+              ("prompt_tools", data["active_advice_prompt_harness"]["lookup_function_count"] == 2),
+              ("risk_rules", data["deterministic_domain_intelligence"]["risk_rule_count"] == 16),
+              ("ilo_indicators", data["deterministic_domain_intelligence"]["ilo_indicator_count"] == 11),
+              ("corridors", data["deterministic_domain_intelligence"]["corridor_profile_count"] == 20),
+              ("no_telemetry", data["privacy_boundary"]["no_telemetry"] is True),
+          ]
+          failed = [name for name, ok in checks if not ok]
+          if failed:
+              raise SystemExit("manifest check failed: " + ", ".join(failed))
+
+          print("Harness manifest verified in APK:")
+          print(json.dumps({
+              "version": data["app"]["version_name"],
+              "advice_prompt_harness": data["active_advice_prompt_harness"],
+              "domain_intelligence": data["deterministic_domain_intelligence"],
+          }, indent=2))
+          PY
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: duecare-journey-debug-apk
-          path: ${{ steps.locate.outputs.apk_path }}
+          path: |
+            ${{ steps.locate.outputs.apk_path }}
+            app/build/outputs/apk/debug/duecare-journey-debug.sha256
           retention-days: 30
           if-no-files-found: error
 
@@ -91,6 +140,10 @@ jobs:
             echo ""
             echo "Download \`duecare-journey-debug-apk\` from the Artifacts"
             echo "section of this workflow run, then sideload:"
+            echo ""
+            echo "- Unit tests run before assemble."
+            echo "- APK is verified to include \`assets/duecare_harness_manifest.json\`."
+            echo "- Artifact includes the APK plus \`duecare-journey-debug.sha256\`."
             echo ""
             echo '```bash'
             echo 'unzip duecare-journey-debug-apk.zip'

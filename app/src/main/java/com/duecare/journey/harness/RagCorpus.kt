@@ -5,12 +5,11 @@ import javax.inject.Singleton
 import kotlin.math.ln
 
 /**
- * Kotlin port of the 26-doc RAG corpus from
- * `packages/duecare-llm-chat/src/duecare/chat/harness/__init__.py`.
+ * Active RAG layer for the on-device advice prompt harness.
  *
- * STATUS (skeleton): only 4 anchor docs are inline as proof-of-concept.
- * The full 26-doc port lands in v1 MVP via build-time codegen from the
- * Python source-of-truth.
+ * Android v0.9 keeps 4 anchor legal/trafficking documents inline so Gemma has
+ * local grounding even offline. The full desktop/web corpus remains in the
+ * parent repo and should be synced through build-time codegen in v1.
  */
 @Singleton
 class RagCorpus @Inject constructor() {

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.duecare.journey.harness.HarnessInfo
 import com.duecare.journey.inference.CloudModelPrefs
 import com.duecare.journey.inference.MediaPipeGemmaEngine
 import com.duecare.journey.inference.ModelManager
@@ -297,6 +298,9 @@ fun SettingsScreen(
         SectionHeader("Demo data")
         DemoDataCard(s, onLoad = { vm.loadDemoData() }, onDelete = { vm.deleteDemoEntries() })
 
+        SectionHeader("Harness bundle")
+        HarnessBundleCard()
+
         SectionHeader("Privacy")
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -353,7 +357,10 @@ fun SettingsScreen(
         SectionHeader("About")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
-                Text("Duecare Journey v0.6.0", fontWeight = FontWeight.Medium)
+                Text(
+                    "Duecare Journey ${HarnessInfo.APP_VERSION_NAME}",
+                    fontWeight = FontWeight.Medium,
+                )
                 Text(
                     "github.com/TaylorAmarelTech/duecare-journey-android",
                     style = MaterialTheme.typography.bodySmall,
@@ -366,6 +373,62 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HarnessBundleCard() {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp)) {
+            Text(
+                "Included in this APK",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Advice prompt harness: ${HarnessInfo.promptHarnessSummary}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Domain intelligence: ${HarnessInfo.domainBundleSummary}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Manifest asset: ${HarnessInfo.MANIFEST_ASSET}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "The parent repo remains the source of truth for the full " +
+                    "desktop/web harness. This Android APK ships a verified " +
+                    "v0.9 on-device subset plus corridor and ILO intelligence.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Model weights, raw case files, and survivor testimony are " +
+                    "not bundled. The app has no telemetry, no account, and " +
+                    "no cloud sync by default.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Android: ${HarnessInfo.ANDROID_REPO}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Parent harness: ${HarnessInfo.PARENT_REPO}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

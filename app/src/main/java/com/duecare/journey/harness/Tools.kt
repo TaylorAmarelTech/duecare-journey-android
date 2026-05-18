@@ -4,14 +4,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Kotlin port of the 4 lookup functions from the Python harness Tools
- * layer: corridor fee caps, fee camouflage, ILO indicator matcher,
- * NGO intake hotlines.
+ * Active lookup layer for the on-device advice prompt harness.
  *
- * STATUS (skeleton): only `lookup_corridor_fee_cap` and
- * `lookup_ngo_intake` are inline as proof-of-concept. The full 4-tool
- * port lands in v1 MVP (along with the structured tool-call dispatch
- * from Gemma's native function-calling API once LiteRT supports it).
+ * Android v0.9 includes corridor fee caps and NGO intake contacts for the
+ * worker-facing chat flow. Wider tool catalogs remain in the desktop/web
+ * harness and should be synced through build-time codegen in v1.
  */
 @Singleton
 class Tools @Inject constructor() {

@@ -1,13 +1,14 @@
-# Duecare Journey — Android
+# Duecare Journey - Android
 
 The on-device companion to [Duecare](https://github.com/TaylorAmarelTech/gemma4_comp).
 A pocket-sized, zero-connectivity legal companion for migrant workers,
 running Gemma 4 E2B entirely on-device via LiteRT.
 
-> **Status:** v0.1 skeleton. Build a debug APK via the included
+> **Status:** v0.9 APK build. Build a debug APK via the included
 > GitHub Actions workflow (no local Android Studio required) or
-> open the project in Android Studio Hedgehog (2023.1+). v1 MVP
-> targets the week of 2026-05-19 (post Gemma 4 Good Hackathon).
+> open the project in Android Studio Hedgehog (2023.1+). The workflow
+> runs unit tests, assembles the APK, and verifies the bundled harness
+> manifest before uploading the artifact.
 
 ## What it is
 
@@ -28,13 +29,16 @@ their embassy attaché.
 The four layers (full architecture in
 [`docs/architecture.md`](./docs/architecture.md)):
 
-1. **Inference** — LiteRT Gemma 4 E2B + the bundled GREP/RAG/Tools
-   harness from the parent project (37 GREP rules, 26 RAG docs,
-   4 lookups).
-2. **Journal** — SQLCipher-encrypted Room DB of stage-tagged events.
-3. **Advice** — Compose chat UI that injects journal context into
+1. **Inference** - LiteRT Gemma 4 E2B + an APK-verified v0.9 harness:
+   active advice prompt harness (4 GREP rules, 4 RAG docs, 2 lookup
+   functions) plus deterministic domain intelligence (16 report risk
+   rules, 11 ILO indicators, 20 corridor profiles). The full
+   desktop/web harness remains in the parent repo and is the source of
+   truth for future codegen sync.
+2. **Journal** - SQLCipher-encrypted Room DB of stage-tagged events.
+3. **Advice** - Compose chat UI that injects journal context into
    every prompt so Gemma's answers are journey-aware.
-4. **Export** — One-tap "Generate complaint packet" → PDF +
+4. **Export** - One-tap "Generate complaint packet" -> PDF +
    recommended NGO + draft delivery message + Android share intent.
 
 ## How to get a working APK without installing anything locally
@@ -50,10 +54,14 @@ APK on every push. **You don't need a local Android Studio install.**
    ```
 
 2. Wait ~6-8 minutes for the **Build APK** workflow to finish
-   (Actions tab on the repo page).
+   (Actions tab on the repo page). The run fails if unit tests fail or
+   if the debug APK does not contain
+   `assets/duecare_harness_manifest.json` with the expected v0.9
+   harness counts.
 
 3. From the workflow run page, scroll to the **Artifacts** section
-   and download `duecare-journey-debug-apk`.
+   and download `duecare-journey-debug-apk`. The artifact includes the
+   APK and a SHA256 checksum file.
 
 4. Sideload to a connected Android device (see
    [`docs/local_setup.md`](./docs/local_setup.md) for `adb` install
@@ -64,9 +72,9 @@ APK on every push. **You don't need a local Android Studio install.**
    adb install app-debug.apk
    ```
 
-5. Open **Duecare Journey** from the launcher. The skeleton shows
-   a 4-tab nav with placeholder content — confirms the build path
-   works. v1 MVP fills in the real screens.
+5. Open **Duecare Journey** from the launcher. Settings -> Harness
+   bundle shows the exact rules, RAG docs, lookup functions, corridor
+   profiles, and manifest asset included in the APK.
 
 Subsequent CI builds take ~2-3 minutes (dep cache warm).
 
@@ -74,12 +82,12 @@ Subsequent CI builds take ~2-3 minutes (dep cache warm).
 
 If you want to iterate faster than the CI loop:
 
-- Install **Android Studio Hedgehog** (2023.1+) — bundles JDK 17,
+- Install **Android Studio Hedgehog** (2023.1+) - bundles JDK 17,
   Android SDK 34, Gradle 8.5. Free, ~3 GB.
 - Open `duecare-journey-android/` in Studio.
-- Connect a phone via USB (Developer Options → USB debugging),
-  or launch an emulator (Tools → Device Manager).
-- Click **Run** ▶ — Studio installs to the connected device.
+- Connect a phone via USB (Developer Options -> USB debugging),
+  or launch an emulator (Tools -> Device Manager).
+- Click **Run** - Studio installs to the connected device.
 
 Step-by-step setup with screenshots: [`docs/local_setup.md`](./docs/local_setup.md).
 

@@ -177,6 +177,6 @@ proxy settings, and that you can reach `dl.google.com` and
 Invalidate Caches / Restart** in Android Studio. Hilt's annotation
 processor occasionally needs a clean run after dep changes.
 
-**APK installs but app crashes on launch** — In v0.1 skeleton this
-shouldn't happen, but check `adb logcat` for the stack trace and
-file an issue with the trace pasted in.
+**APK installs but app crashes on launch** - This should not happen
+in the v0.9 build. Check `adb logcat` for the stack trace and file an
+issue with the trace pasted in.

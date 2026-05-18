@@ -20,9 +20,9 @@ import java.security.SecureRandom
  *   any backup-eligible location.
  * - Return it to caller code outside this class.
  *
- * STATUS (skeleton): the EncryptedSharedPreferences integration is
- * stubbed for the v0.1 skeleton — real key persistence lands in v1
- * MVP. Per `docs/android_app_architecture.md` privacy posture, the
+ * STATUS: the EncryptedSharedPreferences integration is still a
+ * prototype path; durable key persistence lands before production
+ * release. Per `docs/android_app_architecture.md` privacy posture, the
  * real impl uses [androidx.security:security-crypto] (already on the
  * dependency list).
  */

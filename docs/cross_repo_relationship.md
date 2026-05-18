@@ -31,9 +31,11 @@ Three reasons:
 | Asset | Source-of-truth repo | Mirror in this repo |
 |---|---|---|
 | Architecture vision + 4-layer design | this repo (`docs/architecture.md`) | parent has stub linking back |
-| GREP rules (37) | parent (`packages/duecare-llm-chat/src/duecare/chat/harness/__init__.py`) | Kotlin port at `app/src/main/java/com/duecare/journey/harness/GrepRules.kt` (regenerated via codegen) |
-| RAG corpus (26 docs) | parent (same file as above) | Kotlin port at `harness/RagCorpus.kt` |
-| Tool catalogs (corridor caps, NGO hotlines, etc.) | parent (same file) | Kotlin port at `harness/Tools.kt` |
+| Full desktop/web harness | parent (`gemma4_comp`) | Android v0.9 includes a verified subset recorded in `app/src/main/assets/duecare_harness_manifest.json` |
+| Active advice prompt GREP rules | parent is source of truth for expansion | 4 load-bearing Kotlin rules in `app/src/main/java/com/duecare/journey/harness/GrepRules.kt` |
+| Active advice prompt RAG docs | parent is source of truth for expansion | 4 anchor docs in `harness/RagCorpus.kt` |
+| Active advice prompt tools | parent is source of truth for expansion | 2 lookup functions in `harness/Tools.kt` |
+| Deterministic domain intelligence | this repo, aligned to parent concepts | 16 report risk rules, 11 ILO indicators, 20 corridor profiles in `app/src/main/java/com/duecare/journey/intel/DomainKnowledge.kt` |
 | 5-tier rubrics + required-element rubrics | parent (`harness/_rubrics_5tier.json`, `_rubrics_required.json`) | NOT mirrored — the Android app doesn't grade itself; the rubrics are server/notebook concerns |
 | 394 example prompts | parent (`harness/_examples.json`) | NOT mirrored — Android workflow doesn't use them |
 | `legal_citation_quality` rubric criteria | parent | NOT mirrored — same reason |
@@ -62,11 +64,15 @@ rule to the parent's harness:
    `app/src/main/java/com/duecare/journey/harness/GrepRules.kt`,
    preserving all severity / citation / indicator fields.
 
-4. PR + merge to this repo. CI builds a new APK with the new rule.
+4. PR + merge to this repo. CI runs unit tests, builds a new APK, and
+   verifies `assets/duecare_harness_manifest.json` inside the APK before
+   uploading the artifact.
 
-The codegen approach keeps the parent's Python the source of truth
-(only one place to edit a rule) without forcing the Android repo to
-import Python at runtime.
+The codegen approach keeps the parent's Python source as the long-term
+source of truth without forcing the Android repo to import Python at
+runtime. Until that sync is complete, Android v0.9 should describe
+itself as a bundled, APK-verified subset rather than the full
+desktop/web harness.
 
 ## Update flow: when the LiteRT model changes
 
@@ -87,8 +93,9 @@ import Python at runtime.
   parent's PyPI packages. It can build and run with the parent
   repo deleted from disk.
 - **No shared CI.** Parent's CI runs Python validators + corpus
-  checks. This repo's CI runs `./gradlew assembleDebug`. They never
-  call into each other.
+  checks. This repo's CI runs Android unit tests, assembles the debug
+  APK, and inspects the APK for the harness manifest. They never call
+  into each other.
 - **No shared issue tracker (yet).** File Android-specific bugs in
   this repo's Issues; file research / corpus / harness bugs in the
   parent.

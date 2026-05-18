@@ -4,14 +4,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Kotlin port of the 37-rule GREP catalog from
- * `packages/duecare-llm-chat/src/duecare/chat/harness/__init__.py`.
+ * Active GREP layer for the on-device advice prompt harness.
  *
- * STATUS (skeleton): only the 4 most load-bearing rules are inline
- * here as proof-of-concept. The full 37-rule port lands in v1 MVP
- * via a build-time codegen step (Python rules JSON -> Kotlin object).
- * This keeps the rule-set source-of-truth in one place across all
- * deployment surfaces.
+ * Android v0.9 keeps the 4 most load-bearing worker-safety rules inline.
+ * The wider deterministic report analyzer lives in `intel/DomainKnowledge.kt`
+ * with 16 risk rules. The full desktop/web harness remains in the parent repo
+ * and should be synced through build-time codegen in v1.
  */
 @Singleton
 class GrepRules @Inject constructor() {
