@@ -40,7 +40,8 @@ class StructuredFeeAssessor @Inject constructor() {
                     "${formatMinor(payment.amountMinorUnits, payment.currency)} " +
                     "is recoverable in full from the recipient under " +
                     "origin-country regulations."
-            usd != null && usd > cap * 1.05 -> true to
+            cap == 0.0 -> false to null
+            isPlacementShaped && usd != null && usd > cap * 1.05 -> true to
                 "Corridor ${corridor.code} caps placement fees at " +
                     "USD ${"%.0f".format(cap)}. This payment is approx " +
                     "USD ${"%.0f".format(usd)} — exceeds cap by approx " +
