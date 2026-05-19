@@ -710,7 +710,7 @@ class ModelManager @Inject constructor(
         }
     }
 
-    private companion object {
-        const val MIN_VALID_SIZE_BYTES = 100L * 1024 * 1024
+    companion object {
+        private const val MIN_VALID_SIZE_BYTES = 100L * 1024 * 1024
     }
 }
