@@ -7,6 +7,12 @@ local.properties
 *.apk
 *.aab
 *.task
+*.litertlm
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+models/
 
 # Captures
 captures/

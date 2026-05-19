@@ -22,7 +22,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -70,17 +72,21 @@ class ModelManager @Inject constructor(
     private val variantKey = stringPreferencesKey("selected_variant")
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
 
     /** Cached current-variant for synchronous reads. Seeded from
      *  DataStore at init; updated by [setVariant]. */
     private val _activeVariant =
-        MutableStateFlow(ModelVariant.GEMMA4_E2B_INT8_LITERTLM)
+        MutableStateFlow(ModelVariant.GEMMA4_E2B_INT4_LITERTLM)
     val activeVariantFlow: StateFlow<ModelVariant> = _activeVariant.asStateFlow()
 
     init {
         scope.launch {
             val saved = context.modelPrefs.data
-                .map { it[variantKey] ?: ModelVariant.GEMMA4_E2B_INT8_LITERTLM.key }
+                .map { it[variantKey] ?: ModelVariant.GEMMA4_E2B_INT4_LITERTLM.key }
                 .first()
             _activeVariant.value = ModelVariant.fromKey(saved)
         }
@@ -112,7 +118,8 @@ class ModelManager @Inject constructor(
     suspend fun resolvedUrls(): List<String> {
         val custom = customUrl.first()
         if (custom.isNotBlank()) return listOf(custom)
-        return activeVariant().urls
+        val variant = activeVariant()
+        return (discoverHuggingFaceUrls(variant) + variant.urls).distinct()
     }
 
     private suspend fun resolvedSha256(): String {
@@ -155,7 +162,14 @@ class ModelManager @Inject constructor(
         val variant: ModelVariant = activeVariant()
         val target = modelFile()
         if (isDownloaded) {
-            emit(Progress(target.length(), target.length(), done = true))
+            emit(
+                Progress(
+                    target.length(),
+                    target.length(),
+                    done = true,
+                    status = "Model already downloaded",
+                )
+            )
             return@flow
         }
         if (requireUnmetered && !isOnUnmeteredNetwork()) {
@@ -166,16 +180,40 @@ class ModelManager @Inject constructor(
             )
         }
         val urls = resolvedUrls()
-        emit(Progress(0L, variant.expectedSizeBytes, done = false))
+        if (urls.isEmpty()) {
+            throw IllegalStateException("No model download URLs are configured for ${variant.displayName}")
+        }
+        emit(
+            Progress(
+                0L,
+                variant.expectedSizeBytes,
+                done = false,
+                status = "Resolved ${urls.size} download source(s)",
+                mirrorCount = urls.size,
+            )
+        )
 
         var lastError: Throwable? = null
         for ((i, url) in urls.withIndex()) {
             try {
                 Log.i(TAG, "Trying mirror ${i + 1}/${urls.size}: $url")
+                emit(
+                    Progress(
+                        0L,
+                        variant.expectedSizeBytes,
+                        done = false,
+                        status = "Connecting to ${hostFromUrl(url)}",
+                        mirrorIndex = i + 1,
+                        mirrorCount = urls.size,
+                        sourceHost = hostFromUrl(url),
+                    )
+                )
                 downloadFromUrl(
                     url = url,
                     expectedSize = variant.expectedSizeBytes,
                     target = target,
+                    mirrorIndex = i + 1,
+                    mirrorCount = urls.size,
                     emitter = { emit(it) },
                 )
                 lastError = null
@@ -183,8 +221,6 @@ class ModelManager @Inject constructor(
             } catch (e: Throwable) {
                 Log.w(TAG, "Mirror ${i + 1} failed (${e.message}). Trying next.")
                 lastError = e
-                // Clean up any partial file before trying next mirror
-                File(target.absolutePath + ".part").delete()
             }
         }
         if (lastError != null) {
@@ -205,7 +241,15 @@ class ModelManager @Inject constructor(
         val expectedSha = resolvedSha256()
         val tmp = File(target.absolutePath + ".part")
         if (expectedSha.isNotEmpty() && tmp.exists()) {
-            emit(Progress(target.length(), target.length(), done = false, verifying = true))
+            emit(
+                Progress(
+                    tmp.length(),
+                    tmp.length(),
+                    done = false,
+                    verifying = true,
+                    status = "Verifying SHA-256",
+                )
+            )
             val actualSha = sha256Hex(tmp)
             if (!actualSha.equals(expectedSha, ignoreCase = true)) {
                 tmp.delete()
@@ -216,10 +260,26 @@ class ModelManager @Inject constructor(
             }
             Log.i(TAG, "SHA-256 verified")
         }
+        if (tmp.exists() && tmp.length() <= MIN_VALID_SIZE_BYTES) {
+            val badSize = tmp.length()
+            tmp.delete()
+            throw IllegalStateException(
+                "Downloaded file is too small to be a LiteRT model ($badSize bytes)"
+            )
+        }
+        if (target.exists()) target.delete()
         if (tmp.exists() && !tmp.renameTo(target)) {
             throw IllegalStateException("Failed to move downloaded file into place")
         }
-        emit(Progress(target.length(), target.length(), done = true))
+        File(target.absolutePath + ".part.url").delete()
+        emit(
+            Progress(
+                target.length(),
+                target.length(),
+                done = true,
+                status = "Model download complete",
+            )
+        )
         Log.i(TAG, "Model download complete: ${target.length()} bytes")
     }.flowOn(Dispatchers.IO)
 
@@ -227,42 +287,107 @@ class ModelManager @Inject constructor(
         url: String,
         expectedSize: Long,
         target: File,
+        mirrorIndex: Int,
+        mirrorCount: Int,
         emitter: suspend (Progress) -> Unit,
+        allowResume: Boolean = true,
     ) {
-        val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build()
-        val req = Request.Builder().url(url)
-            .header("User-Agent", "DuecareJourney/0.6 (Android)")
-            .build()
-        val resp = client.newCall(req).execute()
-        if (!resp.isSuccessful) {
-            resp.close()
-            throw IOException("HTTP ${resp.code}")
-        }
-        val total = resp.body?.contentLength()?.takeIf { it > 0 } ?: expectedSize
-        val body = resp.body ?: throw IOException("Empty response body")
-
         val tmp = File(target.absolutePath + ".part")
-        if (tmp.exists()) tmp.delete()
-        body.byteStream().use { input ->
-            tmp.outputStream().use { output ->
-                val buf = ByteArray(64 * 1024)
-                var written = 0L
-                var lastEmit = 0L
-                while (true) {
-                    val n = input.read(buf)
-                    if (n == -1) break
-                    output.write(buf, 0, n)
-                    written += n
-                    val now = System.currentTimeMillis()
-                    if (now - lastEmit > 500) {
-                        emitter(Progress(written, total, done = false))
-                        lastEmit = now
+        val partialUrlFile = File(target.absolutePath + ".part.url")
+        val partialUrl = partialUrlFile.takeIf { it.exists() }?.readText().orEmpty()
+        if (tmp.exists() && partialUrl.isNotBlank() && partialUrl != url) {
+            tmp.delete()
+            partialUrlFile.delete()
+        }
+        val resumeFrom = if (
+            allowResume &&
+            tmp.exists() &&
+            partialUrl == url &&
+            tmp.length() > 0L
+        ) {
+            tmp.length()
+        } else {
+            0L
+        }
+        val req = Request.Builder().url(url)
+            .header("User-Agent", "DuecareJourney/0.9 (Android)")
+            .apply {
+                if (resumeFrom > 0L) header("Range", "bytes=$resumeFrom-")
+            }
+            .build()
+
+        http.newCall(req).execute().use { resp ->
+            if (resp.code == 416 && resumeFrom > 0L) {
+                tmp.delete()
+                partialUrlFile.delete()
+                return downloadFromUrl(
+                    url = url,
+                    expectedSize = expectedSize,
+                    target = target,
+                    mirrorIndex = mirrorIndex,
+                    mirrorCount = mirrorCount,
+                    emitter = emitter,
+                    allowResume = false,
+                )
+            }
+            if (!resp.isSuccessful) {
+                throw IOException("HTTP ${resp.code}")
+            }
+            val append = resumeFrom > 0L && resp.code == 206
+            if (!append) tmp.delete()
+            partialUrlFile.writeText(url)
+
+            val body = resp.body ?: throw IOException("Empty response body")
+            val total = contentRangeTotal(resp.header("Content-Range"))
+                ?: body.contentLength().takeIf { it > 0 }?.let {
+                    if (append) resumeFrom + it else it
+                }
+                ?: expectedSize
+            val initialBytes = if (append) resumeFrom else 0L
+            emitter(
+                Progress(
+                    initialBytes,
+                    total,
+                    done = false,
+                    status = if (append) {
+                        "Resuming from ${mb(initialBytes)} MB on ${hostFromUrl(url)}"
+                    } else {
+                        "Downloading from ${hostFromUrl(url)}"
+                    },
+                    mirrorIndex = mirrorIndex,
+                    mirrorCount = mirrorCount,
+                    sourceHost = hostFromUrl(url),
+                )
+            )
+            body.byteStream().use { input ->
+                FileOutputStream(tmp, append).use { output ->
+                    val buf = ByteArray(64 * 1024)
+                    var written = initialBytes
+                    var lastEmit = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n == -1) break
+                        output.write(buf, 0, n)
+                        written += n
+                        val now = System.currentTimeMillis()
+                        if (now - lastEmit > 500) {
+                            emitter(
+                                Progress(
+                                    written,
+                                    total,
+                                    done = false,
+                                    status = "Downloading from ${hostFromUrl(url)}",
+                                    mirrorIndex = mirrorIndex,
+                                    mirrorCount = mirrorCount,
+                                    sourceHost = hostFromUrl(url),
+                                )
+                            )
+                            lastEmit = now
+                        }
                     }
                 }
             }
+        }
         }
     }
 
@@ -297,13 +422,98 @@ class ModelManager @Inject constructor(
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
+    private fun discoverHuggingFaceUrls(variant: ModelVariant): List<String> {
+        if (variant.huggingFaceRepos.isEmpty()) return emptyList()
+        val urls = mutableListOf<String>()
+        for (repo in variant.huggingFaceRepos) {
+            try {
+                val apiUrl = "https://huggingface.co/api/models/$repo?blobs=false"
+                val req = Request.Builder().url(apiUrl)
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "DuecareJourney/0.9 (Android)")
+                    .build()
+                http.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        Log.w(TAG, "HF manifest lookup failed for $repo: HTTP ${resp.code}")
+                        return@use
+                    }
+                    val body = resp.body?.string().orEmpty()
+                    val siblings = JSONObject(body).optJSONArray("siblings") ?: return@use
+                    val files = (0 until siblings.length())
+                        .mapNotNull { i ->
+                            siblings.optJSONObject(i)
+                                ?.optString("rfilename")
+                                ?.takeIf { isModelArtifactName(it) }
+                        }
+                        .sortedWith(
+                            compareBy<String> { rankHuggingFaceFile(it, variant) }
+                                .thenBy { it.length }
+                                .thenBy { it.lowercase() }
+                        )
+                    files.forEach { path ->
+                        urls += "https://huggingface.co/$repo/resolve/main/${encodePath(path)}"
+                    }
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "HF manifest lookup failed for $repo: ${e.message}")
+            }
+        }
+        return urls
+    }
+
+    private fun isModelArtifactName(path: String): Boolean {
+        val lower = path.lowercase()
+        return lower.endsWith(".task") || lower.endsWith(".litertlm")
+    }
+
+    private fun rankHuggingFaceFile(path: String, variant: ModelVariant): Int {
+        val lower = path.lowercase()
+        val exact = variant.preferredHuggingFaceFiles
+            .indexOfFirst { it.equals(path, ignoreCase = true) }
+        if (exact >= 0) return exact
+        var score = 100
+        if (lower.endsWith(".task")) score += variant.taskPreferencePenalty
+        if (lower.endsWith(".litertlm")) score += variant.litertLmPreferencePenalty
+        if (lower.contains("web")) score -= 8
+        if (lower.contains("qualcomm") || lower.contains("qcs") || lower.contains("sm8750")) score += 50
+        if (!lower.contains("gemma")) score += 100
+        return score
+    }
+
+    private fun encodePath(path: String): String =
+        path.split("/").joinToString("/") { segment ->
+            android.net.Uri.encode(segment) ?: segment
+        }
+
+    private fun contentRangeTotal(value: String?): Long? {
+        if (value.isNullOrBlank()) return null
+        val total = value.substringAfter("/", missingDelimiterValue = "")
+        return total.toLongOrNull()?.takeIf { it > 0L }
+    }
+
+    private fun hostFromUrl(url: String): String =
+        android.net.Uri.parse(url).host ?: "download source"
+
+    private fun mb(bytes: Long): Long = bytes / 1024 / 1024
+
     data class Progress(
         val bytesDone: Long,
         val bytesTotal: Long,
         val done: Boolean,
         val verifying: Boolean = false,
+        val status: String = "",
+        val mirrorIndex: Int = 0,
+        val mirrorCount: Int = 0,
+        val sourceHost: String = "",
     ) {
-        val percent: Int get() = if (bytesTotal == 0L) 0 else (bytesDone * 100 / bytesTotal).toInt()
+        val percent: Int
+            get() = if (bytesTotal <= 0L) {
+                0
+            } else {
+                ((bytesDone.coerceAtLeast(0L) * 100) / bytesTotal)
+                    .coerceIn(0L, 100L)
+                    .toInt()
+            }
     }
 
     /**
@@ -318,10 +528,12 @@ class ModelManager @Inject constructor(
      * model — the worker can keep multiple on disk and switch.
      *
      * URL discovery rules:
-     *   - litert-community LiteRT-LM bundles use the multi-prefill q4/q8
-     *     naming `{Family}-{Size}-it_multi-prefill-seq_q{4|8}_ekv1280.litertlm`.
-     *   - Older Gemma 2/3 .task bundles live under MediaPipe's GCS bucket
-     *     `storage.googleapis.com/mediapipe-models/llm_inference/...`.
+     *   - On each download, the app first checks the public HF repository
+     *     manifest for current `.task` / `.litertlm` filenames, then ranks
+     *     them against the variant's preferred filenames. This prevents a
+     *     renamed HF artifact from breaking every worker's first launch.
+     *   - Pinned URLs remain as deterministic fallbacks for offline docs,
+     *     release mirrors, and older Gemma 2/3 `.task` bundles.
      *   - We also add a generic GitHub Releases mirror under
      *     `github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/...`
      *     which we'll populate post-launch. Keeping the URL in the list
@@ -334,90 +546,144 @@ class ModelManager @Inject constructor(
         val familyDescription: String,
         val fileName: String,
         val urls: List<String>,
+        val huggingFaceRepos: List<String> = emptyList(),
+        val preferredHuggingFaceFiles: List<String> = emptyList(),
+        val taskPreferencePenalty: Int = 5,
+        val litertLmPreferencePenalty: Int = 10,
         val expectedSizeBytes: Long,
         val sha256: String?,
     ) {
         GEMMA4_E2B_INT4_LITERTLM(
             key = "gemma4_e2b_int4",
-            displayName = "Gemma 4 E2B (INT4, smallest)",
-            familyDescription = "Apache 2.0 · 4-bit · ~750 MB · best for low-RAM phones",
-            fileName = "gemma4-e2b-int4.litertlm",
+            displayName = "Gemma 4 E2B (web task, smaller)",
+            familyDescription = "Apache 2.0 - LiteRT task - about 2 GB - best first download",
+            fileName = "gemma4-e2b-web.task",
             urls = listOf(
-                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q4_ekv1280.litertlm",
-                "https://huggingface.co/litert-community/gemma-4-E2B-it/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q4_ekv1280.litertlm",
-                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e2b-int4.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task",
+                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e2b-web.task",
             ),
-            expectedSizeBytes = 750_000_000L,
+            huggingFaceRepos = listOf(
+                "litert-community/gemma-4-E2B-it-litert-lm",
+                "litert-community/gemma-4-E2B-it",
+            ),
+            preferredHuggingFaceFiles = listOf(
+                "gemma-4-E2B-it-web.task",
+                "gemma-4-E2B-it.litertlm",
+            ),
+            taskPreferencePenalty = 0,
+            litertLmPreferencePenalty = 8,
+            expectedSizeBytes = 2_000_000_000L,
             sha256 = null,
         ),
         GEMMA4_E2B_INT8_LITERTLM(
             key = "gemma4_e2b_int8",
-            displayName = "Gemma 4 E2B (INT8, recommended)",
-            familyDescription = "Apache 2.0 · 8-bit · ~1.5 GB · the v0.6 default",
-            fileName = "gemma4-e2b-int8.litertlm",
+            displayName = "Gemma 4 E2B (LiteRT-LM, recommended)",
+            familyDescription = "Apache 2.0 - LiteRT-LM - about 2.6 GB - stronger local model",
+            fileName = "gemma4-e2b.litertlm",
             urls = listOf(
-                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q8_ekv1280.litertlm",
-                "https://huggingface.co/litert-community/gemma-4-E2B-it/resolve/main/Gemma4-E2B-it_multi-prefill-seq_q8_ekv1280.litertlm",
-                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e2b-int8.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e2b.litertlm",
             ),
-            expectedSizeBytes = 1_500_000_000L,
+            huggingFaceRepos = listOf(
+                "litert-community/gemma-4-E2B-it-litert-lm",
+                "litert-community/gemma-4-E2B-it",
+            ),
+            preferredHuggingFaceFiles = listOf(
+                "gemma-4-E2B-it.litertlm",
+                "gemma-4-E2B-it-web.task",
+            ),
+            taskPreferencePenalty = 8,
+            litertLmPreferencePenalty = 0,
+            expectedSizeBytes = 2_600_000_000L,
             sha256 = null,
         ),
         GEMMA4_E4B_INT4_LITERTLM(
             key = "gemma4_e4b_int4",
-            displayName = "Gemma 4 E4B (INT4, higher quality)",
-            familyDescription = "Apache 2.0 · 4-bit · ~2.0 GB · needs 6GB+ RAM",
-            fileName = "gemma4-e4b-int4.litertlm",
+            displayName = "Gemma 4 E4B (web task)",
+            familyDescription = "Apache 2.0 - LiteRT task - large download - needs 6GB+ RAM",
+            fileName = "gemma4-e4b-web.task",
             urls = listOf(
-                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q4_ekv1280.litertlm",
-                "https://huggingface.co/litert-community/gemma-4-E4B-it/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q4_ekv1280.litertlm",
-                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e4b-int4.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it-web.task",
+                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e4b-web.task",
             ),
-            expectedSizeBytes = 2_000_000_000L,
+            huggingFaceRepos = listOf(
+                "litert-community/gemma-4-E4B-it-litert-lm",
+                "litert-community/gemma-4-E4B-it",
+            ),
+            preferredHuggingFaceFiles = listOf(
+                "gemma-4-E4B-it-web.task",
+                "gemma-4-E4B-it.litertlm",
+            ),
+            taskPreferencePenalty = 0,
+            litertLmPreferencePenalty = 8,
+            expectedSizeBytes = 3_500_000_000L,
             sha256 = null,
         ),
         GEMMA4_E4B_INT8_LITERTLM(
             key = "gemma4_e4b_int8",
-            displayName = "Gemma 4 E4B (INT8, best quality)",
-            familyDescription = "Apache 2.0 · 8-bit · ~3.5 GB · needs 8GB+ RAM",
-            fileName = "gemma4-e4b-int8.litertlm",
+            displayName = "Gemma 4 E4B (LiteRT-LM, best quality)",
+            familyDescription = "Apache 2.0 - LiteRT-LM - largest download - needs 8GB+ RAM",
+            fileName = "gemma4-e4b.litertlm",
             urls = listOf(
-                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q8_ekv1280.litertlm",
-                "https://huggingface.co/litert-community/gemma-4-E4B-it/resolve/main/Gemma4-E4B-it_multi-prefill-seq_q8_ekv1280.litertlm",
-                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e4b-int8.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
+                "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it-web.task",
+                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma4-e4b.litertlm",
             ),
-            expectedSizeBytes = 3_500_000_000L,
+            huggingFaceRepos = listOf(
+                "litert-community/gemma-4-E4B-it-litert-lm",
+                "litert-community/gemma-4-E4B-it",
+            ),
+            preferredHuggingFaceFiles = listOf(
+                "gemma-4-E4B-it.litertlm",
+                "gemma-4-E4B-it-web.task",
+            ),
+            taskPreferencePenalty = 8,
+            litertLmPreferencePenalty = 0,
+            expectedSizeBytes = 5_000_000_000L,
             sha256 = null,
         ),
         GEMMA3_1B_TASK(
             key = "gemma3_1b_int4_task",
             displayName = "Gemma 3 1B (INT4, fast fallback)",
-            familyDescription = "Apache 2.0 · 4-bit · ~600 MB · fastest first-token latency",
+            familyDescription = "Apache 2.0 - 4-bit - about 600 MB - fastest fallback",
             fileName = "gemma3-1b-it-int4.task",
             urls = listOf(
                 "https://huggingface.co/litert-community/gemma-3-1b-it/resolve/main/gemma-3-1b-it-int4.task",
                 "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma3-1b-it-int4.task",
             ),
+            huggingFaceRepos = listOf("litert-community/gemma-3-1b-it"),
+            preferredHuggingFaceFiles = listOf("gemma-3-1b-it-int4.task"),
+            taskPreferencePenalty = 0,
+            litertLmPreferencePenalty = 20,
             expectedSizeBytes = 600_000_000L,
             sha256 = null,
         ),
         GEMMA2_2B_TASK(
             key = "gemma2_2b_int4_task",
             displayName = "Gemma 2 2B (INT4, legacy gated)",
-            familyDescription = "Gemma TOU · 4-bit · ~1.35 GB · usually gated, sideload preferred",
+            familyDescription = "Gemma TOU - 4-bit - about 1.35 GB - usually gated, sideload preferred",
             fileName = "gemma2-2b-it-int4.task",
             urls = listOf(
                 "https://huggingface.co/litert-community/Gemma2-2B-IT/resolve/main/Gemma2-2B-IT_multi-prefill-seq_q4_ekv1280.task",
                 "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-cpu-int4/float16/1/gemma-2b-it-cpu-int4.bin",
                 "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma2-2b-it-int4.task",
             ),
+            huggingFaceRepos = listOf("litert-community/Gemma2-2B-IT"),
+            preferredHuggingFaceFiles = listOf(
+                "Gemma2-2B-IT_multi-prefill-seq_q4_ekv1280.task",
+            ),
+            taskPreferencePenalty = 0,
+            litertLmPreferencePenalty = 20,
             expectedSizeBytes = 1_350_000_000L,
             sha256 = null,
         );
 
         companion object {
             fun fromKey(k: String): ModelVariant =
-                entries.firstOrNull { it.key == k } ?: GEMMA4_E2B_INT8_LITERTLM
+                entries.firstOrNull { it.key == k } ?: GEMMA4_E2B_INT4_LITERTLM
         }
     }
 

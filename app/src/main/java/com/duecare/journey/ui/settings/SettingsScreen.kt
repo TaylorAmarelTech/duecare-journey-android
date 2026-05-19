@@ -105,6 +105,9 @@ class SettingsViewModel @Inject constructor(
                 downloadProgress = 0,
                 downloadError = null,
                 isVerifying = false,
+                downloadStatus = "Preparing model download",
+                downloadMirror = "",
+                downloadSource = "",
             )
             try {
                 modelManager.download(requireUnmetered = !allowCellular).collect { p ->
@@ -112,6 +115,13 @@ class SettingsViewModel @Inject constructor(
                         downloadProgress = p.percent,
                         isDownloading = !p.done,
                         isVerifying = p.verifying,
+                        downloadStatus = p.status,
+                        downloadMirror = if (p.mirrorCount > 0 && p.mirrorIndex > 0) {
+                            "source ${p.mirrorIndex}/${p.mirrorCount}"
+                        } else {
+                            ""
+                        },
+                        downloadSource = p.sourceHost,
                     )
                     if (p.done) refresh()
                 }
@@ -120,6 +130,7 @@ class SettingsViewModel @Inject constructor(
                     isDownloading = false,
                     isVerifying = false,
                     downloadError = e.message ?: e::class.simpleName ?: "Download failed",
+                    downloadStatus = "Download failed",
                 )
             }
         }
@@ -172,6 +183,9 @@ class SettingsViewModel @Inject constructor(
                 isDownloading = true,
                 downloadProgress = 0,
                 downloadError = null,
+                downloadStatus = "Importing selected model file",
+                downloadMirror = "",
+                downloadSource = "",
             )
             val ok = modelManager.importLocalFile(uri, contentResolver)
             _state.value = _state.value.copy(
@@ -249,10 +263,13 @@ class SettingsViewModel @Inject constructor(
         val downloadProgress: Int = 0,
         val isVerifying: Boolean = false,
         val downloadError: String? = null,
+        val downloadStatus: String = "",
+        val downloadMirror: String = "",
+        val downloadSource: String = "",
         val panicWiped: Boolean = false,
         val demoLoaded: Boolean = false,
         val activeVariant: ModelManager.ModelVariant =
-            ModelManager.ModelVariant.GEMMA4_E2B_INT8_LITERTLM,
+            ModelManager.ModelVariant.GEMMA4_E2B_INT4_LITERTLM,
         val cloudUrl: String = "",
         val cloudApiKey: String = "",
         val cloudModelName: String = "gemma4:e2b",
@@ -483,7 +500,7 @@ private fun ModelVariantPicker(
                         Text(v.familyDescription,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${v.urls.size} mirror URL(s) configured",
+                        Text("HF manifest discovery + ${v.urls.size} pinned mirror URL(s)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -562,15 +579,23 @@ private fun ModelCard(
                 s.isDownloading -> {
                     Text(
                         if (s.isVerifying)
-                            "Verifying file integrity… (sha256)"
+                            "Verifying file integrity... (sha256)"
                         else
-                            "Downloading… ${s.downloadProgress}%",
+                            "Downloading... ${s.downloadProgress}%",
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Spacer(Modifier.height(6.dp))
                     LinearProgressIndicator(
                         progress = { s.downloadProgress / 100f },
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        listOf(s.downloadMirror, s.downloadSource, s.downloadStatus)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" | "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 s.modelDownloaded -> {
@@ -602,8 +627,9 @@ private fun ModelCard(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            "~$sizeMB MB. Free on Wi-Fi. Will try " +
-                                "${s.activeVariant.urls.size} mirror(s) in order.",
+                            "~$sizeMB MB. Free on Wi-Fi. The app first checks " +
+                                "Hugging Face for current model filenames, then tries " +
+                                "${s.activeVariant.urls.size} pinned mirror(s).",
                             modifier = Modifier.padding(10.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,

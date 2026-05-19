@@ -10,6 +10,24 @@ Journey based on those findings.
 
 ## TL;DR
 
+2026-05-18 update for the APK download failure:
+
+- Do not put model weights in the APK or normal git history. GitHub
+  rejects normal repository blobs above 100 MB, and multi-GB model
+  files make APK, sideload, and Play distribution brittle.
+- The app now resolves Gemma 4 LiteRT model files dynamically. It asks
+  the public Hugging Face model manifest for current `.task` and
+  `.litertlm` filenames, ranks the best artifact for the selected
+  variant, then falls back to pinned HF and GitHub Release mirror URLs.
+- FastModel/Unsloth is useful in Kaggle or Python for loading,
+  fine-tuning, quantizing, or preparing a model. It is not an Android
+  runtime. Android still needs a MediaPipe/LiteRT `.task` or
+  `.litertlm` artifact downloaded from HF/R2/GitHub Releases or
+  imported by the user.
+- GitHub Releases are acceptable for smoke-test assets and smaller
+  mirrors. HF Hub or Cloudflare R2 should remain the production source
+  for current multi-GB Gemma 4 artifacts.
+
 1. **Don't bundle the model in the APK.** Google's MediaPipe LLM
    guide explicitly says so. Play Store caps + alignment quirks make
    it the wrong choice at every level.
