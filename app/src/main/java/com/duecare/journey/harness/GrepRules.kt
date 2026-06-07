@@ -6,7 +6,9 @@ import javax.inject.Singleton
 /**
  * Active GREP layer for the on-device advice prompt harness.
  *
- * Android v0.9 keeps the 4 most load-bearing worker-safety rules inline.
+ * Android v0.9.1 keeps the 9 most load-bearing worker-safety rules inline:
+ * 4 core indicators + 5 adversarial-equivocation rules (the cross-domain
+ * analogy-laundering move) synced from the parent harness `GREP_RULES`.
  * The wider deterministic report analyzer lives in `intel/DomainKnowledge.kt`
  * with 16 risk rules. The full desktop/web harness remains in the parent repo
  * and should be synced through build-time codegen in v1.
@@ -88,6 +90,122 @@ class GrepRules @Inject constructor() {
             indicator = "'Huroob' (absconder) status is a documented " +
                 "coercion pattern. Recent Saudi reforms reduce but don't " +
                 "eliminate. Advise the worker to contact embassy attaché.",
+        ),
+        // --- adversarial-equivocation rules (synced from parent GREP_RULES) ---
+        // Detect the cross-domain analogy-laundering move: a benign-domain
+        // analogy ("financial instrument", "like sponsoring an event") used to
+        // normalize a labour-control arrangement. Each is allRequired = the
+        // control term AND the analogy phrase, so benign uses don't fire.
+        Rule(
+            rule = "equivocation_bond_financial_instrument",
+            patterns = listOf(
+                Regex(
+                    "\\b(?:security |cash |salary |completion )?bond\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                Regex(
+                    "\\b(?:financial instrument|basically a (?:financial|deposit)|" +
+                        "like a (?:deposit|bank) bond|just a deposit|" +
+                        "standard (?:financial )?instrument)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+            ),
+            allRequired = true,
+            severity = "high",
+            citation = "ILO C029 + P029 (2014); ILO C181 Art. 7 (no worker-paid " +
+                "fees); ILO Forced Labour Indicator 4 (debt bondage)",
+            indicator = "A worker-funded bond reframed as a benign financial " +
+                "instrument is debt-bondage laundering via finance-domain " +
+                "equivocation. The analogy does not change that the worker bears " +
+                "a coercive, recruitment-related cost tied to completing the contract.",
+        ),
+        Rule(
+            rule = "equivocation_broker_commission_normal",
+            patterns = listOf(
+                Regex("\\bbroker\\b", RegexOption.IGNORE_CASE),
+                Regex(
+                    "\\b(?:commission (?:is|are) normal|commission everywhere|" +
+                        "brokers? (?:take|takes|earn)s? commission|" +
+                        "standard business practice|normal business practice|" +
+                        "like (?:a )?(?:stock|real ?estate|insurance) broker)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+            ),
+            allRequired = true,
+            severity = "high",
+            citation = "ILO C181 Art. 7 (employer-pays principle); IRIS Standard",
+            indicator = "A labour-broker fee charged to the worker, normalized by " +
+                "analogy to finance or real-estate brokerage commission. The " +
+                "employer-pays principle forbids charging the worker.",
+        ),
+        Rule(
+            rule = "equivocation_sponsor_like_event",
+            patterns = listOf(
+                Regex("\\bsponsor(?:ship)?\\b", RegexOption.IGNORE_CASE),
+                Regex(
+                    "\\b(?:like sponsoring an event|just (?:the|a|my) sponsor|" +
+                        "sponsorship is (?:just )?like|" +
+                        "like (?:a )?(?:team|event|brand|title) sponsor|" +
+                        "same as sponsoring)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+            ),
+            allRequired = true,
+            severity = "high",
+            citation = "ILO C029 (restriction of movement); kafala reform standards " +
+                "(exit-permit / NOC abolition)",
+            indicator = "Kafala sponsor control over worker mobility reframed as " +
+                "benign event or brand sponsorship. Tying a worker's ability to " +
+                "change jobs or leave the country to a sponsor is a " +
+                "restriction-of-movement indicator, not a marketing relationship.",
+        ),
+        Rule(
+            rule = "equivocation_safekeeping_analogy",
+            patterns = listOf(
+                Regex(
+                    "\\b(?:passport|identity document|travel document)s?\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                Regex("\\bsafe ?keeping\\b", RegexOption.IGNORE_CASE),
+                Regex(
+                    "\\b(?:cargo hold|vault|safe(?:ty)? deposit(?: box)?|locker|" +
+                        "for protection|just storage|like (?:a )?bank)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+            ),
+            allRequired = true,
+            severity = "high",
+            citation = "ILO C029 + P029; ILO Forced Labour Indicator 1 (retention " +
+                "of identity documents)",
+            indicator = "Passport or document confiscation laundered via a " +
+                "safekeeping analogy (like a vault, cargo hold, or bank). The " +
+                "worker is entitled to keep custody of identity documents at all times.",
+        ),
+        Rule(
+            rule = "equivocation_charge_standard_business",
+            patterns = listOf(
+                Regex(
+                    "\\b(?:charg\\w*|fees?|deduct\\w*)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                Regex(
+                    "\\b(?:worker|migrant|employee|applicant|recruit)s?\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+                Regex(
+                    "\\b(?:standard business practice|normal business practice|" +
+                        "just business|every (?:industry|business|company) " +
+                        "(?:does|charges)|cost of doing business)\\b",
+                    RegexOption.IGNORE_CASE,
+                ),
+            ),
+            allRequired = true,
+            severity = "high",
+            citation = "ILO C181 Art. 7 (no direct or indirect worker-paid fees); " +
+                "POEA / BP2MI worker-paid-zero rules",
+            indicator = "A worker-charged recruitment fee normalized as standard " +
+                "business practice. Recruitment costs fall on the employer under " +
+                "the employer-pays principle, not as a normal cost passed to the worker.",
         ),
     )
 

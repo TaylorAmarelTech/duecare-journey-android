@@ -3,8 +3,8 @@
   "app": {
     "name": "Duecare Journey",
     "application_id": "com.duecare.journey",
-    "version_code": 10,
-    "version_name": "0.9.0-twenty-corridors-new-rules"
+    "version_code": 11,
+    "version_name": "0.9.1-equivocation-rules"
   },
   "repositories": {
     "android": "https://github.com/TaylorAmarelTech/duecare-journey-android",
@@ -19,12 +19,17 @@
   },
   "active_advice_prompt_harness": {
     "description": "The journey-aware chat prompt assembler runs these deterministic layers before the model response.",
-    "grep_rule_count": 4,
+    "grep_rule_count": 9,
     "grep_rule_ids": [
       "usury_pattern_high_apr",
       "debt_bondage_loan_salary_deduction",
       "passport_safekeeping_consent_form",
-      "huroob_threat"
+      "huroob_threat",
+      "equivocation_bond_financial_instrument",
+      "equivocation_broker_commission_normal",
+      "equivocation_sponsor_like_event",
+      "equivocation_safekeeping_analogy",
+      "equivocation_charge_standard_business"
     ],
     "rag_doc_count": 4,
     "rag_doc_ids": [

@@ -29,8 +29,8 @@ their embassy attaché.
 The four layers (full architecture in
 [`docs/architecture.md`](./docs/architecture.md)):
 
-1. **Inference** - LiteRT Gemma 4 E2B + an APK-verified v0.9 harness:
-   active advice prompt harness (4 GREP rules, 4 RAG docs, 2 lookup
+1. **Inference** - LiteRT Gemma 4 E2B + an APK-verified v0.9.1 harness:
+   active advice prompt harness (9 GREP rules, 4 RAG docs, 2 lookup
    functions) plus deterministic domain intelligence (16 report risk
    rules, 11 ILO indicators, 20 corridor profiles). The full
    desktop/web harness remains in the parent repo and is the source of

@@ -9,11 +9,11 @@ package com.duecare.journey.harness
  * - .github/workflows/build-apk.yml APK-manifest verification checks
  */
 object HarnessInfo {
-    const val APP_VERSION_NAME = "0.9.0-twenty-corridors-new-rules"
-    const val APP_VERSION_CODE = 10
+    const val APP_VERSION_NAME = "0.9.1-equivocation-rules"
+    const val APP_VERSION_CODE = 11
     const val MANIFEST_ASSET = "duecare_harness_manifest.json"
 
-    const val PROMPT_GREP_RULE_COUNT = 4
+    const val PROMPT_GREP_RULE_COUNT = 9
     const val PROMPT_RAG_DOC_COUNT = 4
     const val PROMPT_LOOKUP_FUNCTION_COUNT = 2
     const val DOMAIN_RISK_RULE_COUNT = 16

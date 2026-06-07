@@ -98,8 +98,8 @@ jobs:
 
           checks = [
               ("schema", data.get("schema_version") == "duecare.android.harness_manifest.v1"),
-              ("version_code", data["app"]["version_code"] == 10),
-              ("prompt_grep", data["active_advice_prompt_harness"]["grep_rule_count"] == 4),
+              ("version_code", data["app"]["version_code"] == 11),
+              ("prompt_grep", data["active_advice_prompt_harness"]["grep_rule_count"] == 9),
               ("prompt_rag", data["active_advice_prompt_harness"]["rag_doc_count"] == 4),
               ("prompt_tools", data["active_advice_prompt_harness"]["lookup_function_count"] == 2),
               ("risk_rules", data["deterministic_domain_intelligence"]["risk_rule_count"] == 16),

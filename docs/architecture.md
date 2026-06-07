@@ -92,7 +92,7 @@ HK, IJM, or their embassy attaché.
 | Throughput target (mid-range, Snapdragon 7-class) | 4-8 tokens/sec |
 | Conversion path | PyTorch → AI Edge Torch → `.task` LiteRT bundle |
 | Hardware acceleration | NNAPI on Android 13+; Vulkan compute fallback; CPU INT8 floor |
-| Bundled with | APK asset `duecare_harness_manifest.json`; active advice prompt harness (4 GREP rules, 4 RAG docs, 2 lookup functions); deterministic domain intelligence (16 report risk rules, 11 ILO indicators, 20 corridor profiles). The full desktop/web harness remains in `gemma4_comp` and is the source of truth for future codegen sync. |
+| Bundled with | APK asset `duecare_harness_manifest.json`; active advice prompt harness (9 GREP rules — 4 core indicators + 5 adversarial-equivocation rules, 4 RAG docs, 2 lookup functions); deterministic domain intelligence (16 report risk rules, 11 ILO indicators, 20 corridor profiles). The full desktop/web harness remains in `gemma4_comp` and is the source of truth for future codegen sync. |
 
 **Why E2B not E4B:** E2B fits comfortably on every device with 4GB+
 RAM. E4B requires 6GB+ and excludes a meaningful fraction of the
