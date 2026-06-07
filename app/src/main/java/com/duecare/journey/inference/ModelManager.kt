@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.duecare.journey.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,13 +81,13 @@ class ModelManager @Inject constructor(
     /** Cached current-variant for synchronous reads. Seeded from
      *  DataStore at init; updated by [setVariant]. */
     private val _activeVariant =
-        MutableStateFlow(ModelVariant.GEMMA4_E2B_INT4_LITERTLM)
+        MutableStateFlow(ModelVariant.fromKey(BuildConfig.DEFAULT_MODEL_KEY))
     val activeVariantFlow: StateFlow<ModelVariant> = _activeVariant.asStateFlow()
 
     init {
         scope.launch {
             val saved = context.modelPrefs.data
-                .map { it[variantKey] ?: ModelVariant.GEMMA4_E2B_INT4_LITERTLM.key }
+                .map { it[variantKey] ?: BuildConfig.DEFAULT_MODEL_KEY }
                 .first()
             _activeVariant.value = ModelVariant.fromKey(saved)
         }

@@ -17,6 +17,32 @@ android {
         versionName = "0.9.1-equivocation-rules"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // Default on-device model. Overridden per product flavor below so each
+        // APK variant ships sensible defaults for its target device tier.
+        buildConfigField("String", "DEFAULT_MODEL_KEY", "\"gemma4_e2b_int4\"")
+    }
+
+    // Multiple APK variants ("versions") for the device-tier spread of the
+    // target audience. Both are separately installable (distinct applicationId)
+    // and offline-first; they differ only in the DEFAULT model they pick on a
+    // fresh install — the worker can still switch models in Settings.
+    flavorDimensions += "tier"
+    productFlavors {
+        create("standard") {
+            dimension = "tier"
+            isDefault = true
+            versionNameSuffix = "-standard"
+            // inherits DEFAULT_MODEL_KEY = gemma4_e2b_int4 (Gemma 4 E2B, ~2 GB)
+        }
+        create("lite") {
+            dimension = "tier"
+            applicationIdSuffix = ".lite"
+            versionNameSuffix = "-lite"
+            // budget / entry-level devices (common in PH/ID/NP/BD): default to the
+            // small ~600 MB Gemma 3 1B so the app is usable on 3-4 GB RAM phones.
+            buildConfigField("String", "DEFAULT_MODEL_KEY", "\"gemma3_1b_int4_task\"")
+        }
     }
 
     buildTypes {
@@ -36,7 +62,10 @@ android {
 
     kotlinOptions { jvmTarget = "17" }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true   // expose DEFAULT_MODEL_KEY per flavor
+    }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
 
     packaging {

@@ -4,11 +4,22 @@ The on-device companion to [Duecare](https://github.com/TaylorAmarelTech/gemma4_
 A pocket-sized, zero-connectivity legal companion for migrant workers,
 running Gemma 4 E2B entirely on-device via LiteRT.
 
-> **Status:** v0.9 APK build. Build a debug APK via the included
-> GitHub Actions workflow (no local Android Studio required) or
-> open the project in Android Studio Hedgehog (2023.1+). The workflow
-> runs unit tests, assembles the APK, and verifies the bundled harness
-> manifest before uploading the artifact.
+> **Status:** v0.9.1 APK build, now in **two flavors** for the device-tier
+> spread of the target audience:
+>
+> - **standard** (`app-standard-debug.apk`) — defaults to Gemma 4 E2B (~2 GB),
+>   mainstream devices.
+> - **lite** (`app-lite-debug.apk`) — defaults to the ~600 MB Gemma 3 1B for
+>   budget / entry-level phones (common in PH/ID/NP/BD); installs side-by-side
+>   as `com.duecare.journey.lite`.
+>
+> Both are offline-first and let the worker switch models in Settings; the
+> flavor only sets the *default* on a fresh install. Build via the included
+> GitHub Actions workflow (no local Android Studio required) — it runs unit
+> tests, assembles **both** APKs, and verifies the bundled harness manifest in
+> each before uploading the `duecare-journey-debug-apks` artifact. Locally:
+> `./gradlew assembleStandardDebug assembleLiteDebug` (or open in Android
+> Studio Hedgehog 2023.1+ and pick the build variant).
 
 ## What it is
 
