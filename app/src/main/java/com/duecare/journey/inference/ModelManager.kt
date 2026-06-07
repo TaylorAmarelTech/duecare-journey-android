@@ -388,7 +388,6 @@ class ModelManager @Inject constructor(
                 }
             }
         }
-        }
     }
 
     /** Delete the cached model file. Frees disk space. */
