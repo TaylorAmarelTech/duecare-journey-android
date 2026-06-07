@@ -384,8 +384,8 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "MIT licensed. Built with Google Gemma per the Gemma " +
-                        "Terms of Use (Gemma 2) or Apache 2.0 (Gemma 3 / 4).",
+                    "MIT licensed. Built with Google Gemma 4, used under the " +
+                        "Apache 2.0 license.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

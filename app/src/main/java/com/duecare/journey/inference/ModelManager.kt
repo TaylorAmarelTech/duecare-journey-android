@@ -41,14 +41,13 @@ private val Context.modelPrefs by preferencesDataStore("duecare_model_settings")
  *
  * v0.6 redesign — wires up "everything" the user asked for:
  *
- *   - Six built-in variants (Gemma 4 E2B INT4/INT8, Gemma 4 E4B INT4/INT8,
- *     Gemma 3 1B INT4, Gemma 2 2B INT4 legacy). Worker can switch via
- *     Settings → On-device model.
+ *   - Four built-in Gemma 4 variants (E2B INT4/INT8, E4B INT4/INT8). The
+ *     worker can switch via Settings → On-device model. Gemma 4 only —
+ *     no other model family is offered.
  *   - Each variant carries a LIST of fallback URLs. Download tries the
  *     primary first; on 404/connect-fail, falls through to the next.
- *     Mirrors include HF Hub primary, GitHub Releases mirror (when we
- *     publish one), and Google Cloud Storage for older Gemma 2 .task
- *     bundles.
+ *     Mirrors include HF Hub primary and a GitHub Releases mirror (when we
+ *     publish one).
  *   - Custom URL override still wins when set — useful for NGO-hosted
  *     mirrors and for fine-tuned variants published elsewhere.
  *   - SHA-256 verification against an optional hash. MediaPipe surfaces
@@ -532,8 +531,8 @@ class ModelManager @Inject constructor(
      *     manifest for current `.task` / `.litertlm` filenames, then ranks
      *     them against the variant's preferred filenames. This prevents a
      *     renamed HF artifact from breaking every worker's first launch.
-     *   - Pinned URLs remain as deterministic fallbacks for offline docs,
-     *     release mirrors, and older Gemma 2/3 `.task` bundles.
+     *   - Pinned URLs remain as deterministic fallbacks for offline docs and
+     *     release mirrors of the Gemma 4 `.task` / `.litertlm` bundles.
      *   - We also add a generic GitHub Releases mirror under
      *     `github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/...`
      *     which we'll populate post-launch. Keeping the URL in the list
@@ -643,41 +642,6 @@ class ModelManager @Inject constructor(
             taskPreferencePenalty = 8,
             litertLmPreferencePenalty = 0,
             expectedSizeBytes = 5_000_000_000L,
-            sha256 = null,
-        ),
-        GEMMA3_1B_TASK(
-            key = "gemma3_1b_int4_task",
-            displayName = "Gemma 3 1B (INT4, fast fallback)",
-            familyDescription = "Apache 2.0 - 4-bit - about 600 MB - fastest fallback",
-            fileName = "gemma3-1b-it-int4.task",
-            urls = listOf(
-                "https://huggingface.co/litert-community/gemma-3-1b-it/resolve/main/gemma-3-1b-it-int4.task",
-                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma3-1b-it-int4.task",
-            ),
-            huggingFaceRepos = listOf("litert-community/gemma-3-1b-it"),
-            preferredHuggingFaceFiles = listOf("gemma-3-1b-it-int4.task"),
-            taskPreferencePenalty = 0,
-            litertLmPreferencePenalty = 20,
-            expectedSizeBytes = 600_000_000L,
-            sha256 = null,
-        ),
-        GEMMA2_2B_TASK(
-            key = "gemma2_2b_int4_task",
-            displayName = "Gemma 2 2B (INT4, legacy gated)",
-            familyDescription = "Gemma TOU - 4-bit - about 1.35 GB - usually gated, sideload preferred",
-            fileName = "gemma2-2b-it-int4.task",
-            urls = listOf(
-                "https://huggingface.co/litert-community/Gemma2-2B-IT/resolve/main/Gemma2-2B-IT_multi-prefill-seq_q4_ekv1280.task",
-                "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-cpu-int4/float16/1/gemma-2b-it-cpu-int4.bin",
-                "https://github.com/TaylorAmarelTech/duecare-journey-android/releases/download/models-v1/gemma2-2b-it-int4.task",
-            ),
-            huggingFaceRepos = listOf("litert-community/Gemma2-2B-IT"),
-            preferredHuggingFaceFiles = listOf(
-                "Gemma2-2B-IT_multi-prefill-seq_q4_ekv1280.task",
-            ),
-            taskPreferencePenalty = 0,
-            litertLmPreferencePenalty = 20,
-            expectedSizeBytes = 1_350_000_000L,
             sha256 = null,
         );
 

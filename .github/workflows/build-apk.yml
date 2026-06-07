@@ -62,9 +62,9 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
       - name: Run unit tests (all flavors)
-        run: gradle :app:testStandardDebugUnitTest :app:testLiteDebugUnitTest --no-daemon --stacktrace
+        run: gradle :app:testStandardDebugUnitTest :app:testProDebugUnitTest --no-daemon --stacktrace
 
-      - name: Assemble debug APKs (standard + lite)
+      - name: Assemble debug APKs (standard + pro)
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
       - name: Locate and checksum APK variants
@@ -119,7 +119,7 @@ jobs:
           print(f"\nAll {len(apks)} APK variant(s) verified.")
           PY
 
-      - name: Upload APK artifacts (standard + lite)
+      - name: Upload APK artifacts (standard + pro)
         uses: actions/upload-artifact@v4
         with:
           name: duecare-journey-debug-apks
@@ -138,9 +138,9 @@ jobs:
             echo "Download \`duecare-journey-debug-apks\` from the Artifacts"
             echo "section of this workflow run. It contains TWO variants:"
             echo ""
-            echo "- \`app-standard-debug.apk\` — Gemma 4 E2B default (mainstream devices)."
-            echo "- \`app-lite-debug.apk\` — Gemma 3 1B default (~600 MB, budget devices);"
-            echo "  installs side-by-side as \`com.duecare.journey.lite\`."
+            echo "- \`app-standard-debug.apk\` — Gemma 4 E2B default (~2 GB, mainstream devices)."
+            echo "- \`app-pro-debug.apk\` — Gemma 4 E4B default (~3.5 GB, 6 GB+ RAM devices);"
+            echo "  installs side-by-side as \`com.duecare.journey.pro\`."
             echo ""
             echo "- Unit tests run before assemble (both flavors)."
             echo "- Every APK is verified to include \`assets/duecare_harness_manifest.json\`."
@@ -148,6 +148,6 @@ jobs:
             echo ""
             echo '```bash'
             echo '# pick the variant for your device tier, then:'
-            echo 'adb install app-standard-debug.apk   # or app-lite-debug.apk'
+            echo 'adb install app-standard-debug.apk   # or app-pro-debug.apk'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

@@ -10,6 +10,10 @@ Journey based on those findings.
 
 ## TL;DR
 
+> **Status (v0.9.1):** the app ships **Gemma 4 only** (E2B / E4B, Apache 2.0).
+> The Gemma 2 / Gemma 3 mentions below are retained as historical context for
+> why we migrated to Gemma 4 — they are NOT offered or downloaded in the app.
+
 2026-05-18 update for the APK download failure:
 
 - Do not put model weights in the APK or normal git history. GitHub
@@ -80,7 +84,7 @@ to pick the live mirror.
 
 ## C. Gemma terms-of-use — the actual rules
 
-### Gemma 2 (current Duecare default)
+### Gemma 2 (historical — migrated away from; NOT used in the app)
 
 Ships under the [Gemma Terms of Use](https://ai.google.dev/gemma/terms).
 Section 1.1(b) defines *"Distribution"* broadly. Section 3.1

@@ -35,13 +35,13 @@ android {
             versionNameSuffix = "-standard"
             // inherits DEFAULT_MODEL_KEY = gemma4_e2b_int4 (Gemma 4 E2B, ~2 GB)
         }
-        create("lite") {
+        create("pro") {
             dimension = "tier"
-            applicationIdSuffix = ".lite"
-            versionNameSuffix = "-lite"
-            // budget / entry-level devices (common in PH/ID/NP/BD): default to the
-            // small ~600 MB Gemma 3 1B so the app is usable on 3-4 GB RAM phones.
-            buildConfigField("String", "DEFAULT_MODEL_KEY", "\"gemma3_1b_int4_task\"")
+            applicationIdSuffix = ".pro"
+            versionNameSuffix = "-pro"
+            // capable devices (6 GB+ RAM): default to the higher-quality Gemma 4
+            // E4B so reviewers and NGO staff get the strongest on-device answer.
+            buildConfigField("String", "DEFAULT_MODEL_KEY", "\"gemma4_e4b_int4\"")
         }
     }
 

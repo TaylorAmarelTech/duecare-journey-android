@@ -9,17 +9,17 @@ running Gemma 4 E2B entirely on-device via LiteRT.
 >
 > - **standard** (`app-standard-debug.apk`) — defaults to Gemma 4 E2B (~2 GB),
 >   mainstream devices.
-> - **lite** (`app-lite-debug.apk`) — defaults to the ~600 MB Gemma 3 1B for
->   budget / entry-level phones (common in PH/ID/NP/BD); installs side-by-side
->   as `com.duecare.journey.lite`.
+> - **pro** (`app-pro-debug.apk`) — defaults to Gemma 4 E4B (~3.5 GB) for capable
+>   phones (6 GB+ RAM); installs side-by-side as `com.duecare.journey.pro`.
 >
-> Both are offline-first and let the worker switch models in Settings; the
-> flavor only sets the *default* on a fresh install. Build via the included
-> GitHub Actions workflow (no local Android Studio required) — it runs unit
-> tests, assembles **both** APKs, and verifies the bundled harness manifest in
-> each before uploading the `duecare-journey-debug-apks` artifact. Locally:
-> `./gradlew assembleStandardDebug assembleLiteDebug` (or open in Android
-> Studio Hedgehog 2023.1+ and pick the build variant).
+> Both run **Gemma 4 only** and are offline-first; the worker can switch among
+> the four Gemma 4 variants (E2B/E4B × INT4/INT8) in Settings — the flavor only
+> sets the *default* on a fresh install. Build via the included GitHub Actions
+> workflow (no local Android Studio required) — it runs unit tests, assembles
+> **both** APKs, and verifies the bundled harness manifest in each before
+> uploading the `duecare-journey-debug-apks` artifact. Locally:
+> `./gradlew assembleStandardDebug assembleProDebug` (or open in Android Studio
+> Hedgehog 2023.1+ and pick the build variant).
 
 ## What it is
 
